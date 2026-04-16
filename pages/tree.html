@@ -1,71 +1,77 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Hierarchy Tree — ShipDesign</title>
   <link rel="stylesheet" href="../css/style.css">
   <style>
-    .tree-wrap { padding: 12px 20px 32px; }
-    .tree-row {
-      display: flex; align-items: center; gap: 8px;
-      padding: 5px 8px; border-radius: var(--radius-md);
-      cursor: pointer; user-select: none;
-    }
-    .tree-row:hover { background: var(--bg-secondary); }
-    .tree-row.selected { background: var(--blue-50); }
-    .toggle {
-      width: 16px; height: 16px; display: flex; align-items: center;
-      justify-content: center; font-size: 10px; color: var(--text-tertiary);
-      flex-shrink: 0; transition: transform .15s;
-    }
-    .toggle.open { transform: rotate(90deg); }
-    .toggle.leaf { opacity: 0; pointer-events: none; }
-    .t-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .t-label { font-size: 13px; flex: 1; }
-    .t-label.bold { font-weight: 500; }
-    .t-label.sm   { font-size: 12px; }
-    .t-count { font-size: 11px; color: var(--text-tertiary); }
-    .children { padding-left: 0; }
+    .tree-wrap { padding:14px 24px 32px; }
 
-    .task-detail {
-      position: fixed; top: 50px; right: 0; width: 300px;
-      height: calc(100vh - 50px); background: var(--bg-primary);
-      border-left: 0.5px solid var(--border-light);
-      padding: 20px; overflow-y: auto; transform: translateX(100%);
-      transition: transform .2s; z-index: 100;
+    .tree-row {
+      display:flex; align-items:center; gap:9px;
+      padding:6px 9px; border-radius:var(--radius-md);
+      cursor:pointer; user-select:none;
     }
-    .task-detail.open { transform: translateX(0); }
-    .detail-close {
-      position: absolute; top: 12px; right: 12px;
-      background: none; border: none; font-size: 18px;
-      cursor: pointer; color: var(--text-tertiary);
+    .tree-row:hover { background:var(--bg-secondary); }
+    .tree-row.selected { background:var(--blue-50); }
+    .toggle {
+      width:18px; height:18px; display:flex; align-items:center; justify-content:center;
+      font-size:11px; color:var(--text-tertiary); flex-shrink:0; transition:transform .15s;
     }
-    .detail-title { font-size: 14px; font-weight: 500; margin: 8px 0 16px; line-height: 1.4; }
-    .detail-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 0.5px solid var(--border-light); font-size: 12px; }
-    .detail-key { color: var(--text-secondary); }
-    .status-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
-    .status-btn {
-      font-size: 11px; padding: 4px 10px; border-radius: 8px;
-      border: 0.5px solid var(--border-mid); cursor: pointer;
-      background: var(--bg-secondary); color: var(--text-primary);
-      font-family: var(--font);
+    .toggle.open { transform:rotate(90deg); }
+    .toggle.leaf { opacity:0; pointer-events:none; }
+    .t-dot  { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .t-label{ font-size:14px; flex:1; line-height:1.4; }
+    .t-label.bold { font-size:15px; font-weight:500; }
+    .t-count{ font-size:12px; color:var(--text-tertiary); }
+    .children { padding-left:0; }
+
+    /* split layout when detail is open */
+    .tree-layout { display:flex; gap:0; flex:1; overflow:hidden; min-height:0; }
+    .tree-scroll  { flex:1; overflow-y:auto; padding:14px 0 32px 0; }
+    .detail-pane  {
+      width:0; overflow:hidden; transition:width .2s; flex-shrink:0;
+      border-left:0.5px solid var(--border-light); background:var(--bg-primary);
     }
-    .status-btn.active { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+    .detail-pane.open { width:360px; overflow-y:auto; }
+    .detail-inner { padding:20px; min-width:360px; }
+
+    .d-close { float:right; background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-tertiary); line-height:1; margin-bottom:8px; }
+    .d-breadcrumb { font-size:12px; color:var(--text-tertiary); margin-bottom:6px; }
+    .d-title      { font-size:16px; font-weight:500; line-height:1.4; margin-bottom:14px; }
+    .d-row        { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:0.5px solid var(--border-light); font-size:13px; }
+    .d-row:last-of-type { border-bottom:none; }
+    .d-key  { color:var(--text-secondary); }
+    .d-sec  { font-size:13px; font-weight:500; color:var(--text-secondary); margin:16px 0 8px; }
+    .st-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:14px; }
+    .st-btn { font-size:12px; padding:6px 8px; border-radius:var(--radius-md); border:0.5px solid var(--border-mid); cursor:pointer; text-align:center; background:var(--bg-primary); color:var(--text-secondary); font-family:var(--font); }
+    .st-btn:hover  { border-color:#185FA5; color:#185FA5; }
+    .st-btn.active { background:#185FA5; color:#fff; border-color:#185FA5; }
+    .st-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+    /* upload in detail */
+    .mini-upload { border:1.5px dashed var(--border-mid); border-radius:var(--radius-md); padding:14px; text-align:center; cursor:pointer; margin-bottom:10px; }
+    .mini-upload:hover { background:var(--blue-50); border-color:#185FA5; }
+    .mini-upload p { font-size:12px; color:var(--text-secondary); }
+    .mini-doc { display:flex; align-items:center; gap:8px; padding:7px 9px; background:var(--bg-secondary); border-radius:var(--radius-md); margin-bottom:6px; font-size:12px; }
+    .mini-doc-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
+
+    /* add deliverable */
+    .add-modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:400; align-items:center; justify-content:center; }
+    .add-modal-bg.open { display:flex; }
+    .add-modal { background:var(--bg-primary); border-radius:var(--radius-xl); border:0.5px solid var(--border-light); padding:26px; width:480px; max-width:92vw; }
+    .add-modal h3 { font-size:16px; font-weight:500; margin-bottom:4px; }
+    .add-modal .sub { font-size:13px; color:var(--text-tertiary); margin-bottom:20px; }
+    .form-row { margin-bottom:14px; }
+    .form-row label { display:block; font-size:13px; color:var(--text-secondary); margin-bottom:5px; font-weight:500; }
+    .form-row input,.form-row select,.form-row textarea { width:100%; font-size:14px; padding:9px 11px; border-radius:var(--radius-md); border:0.5px solid var(--border-mid); background:var(--bg-primary); color:var(--text-primary); font-family:var(--font); }
+    .form-row input:focus,.form-row select:focus,.form-row textarea:focus { outline:none; border-color:#185FA5; }
+    .form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   </style>
 </head>
 <body>
 <script src="../js/data.js"></script>
-<script>
-const tasks = getTasks();
-const treeState = {};
-let selectedTask = null;
-
-const params = new URLSearchParams(location.search);
-const phaseFilter = params.get('phase') || null;
-
-document.write(renderShell('tree'));
-</script>
+<script>document.write(renderShell('tree'));</script>
 
 <div class="content-header">
   <span class="page-title">Hierarchy tree</span>
@@ -73,96 +79,123 @@ document.write(renderShell('tree'));
   <div class="header-right">
     <button class="btn" onclick="expandAll()">Expand all</button>
     <button class="btn" onclick="collapseAll()">Collapse all</button>
+    <button class="btn btn-blue" id="add-btn" onclick="openAddModal()">+ Add deliverable</button>
   </div>
 </div>
 
-<div class="tree-wrap" id="tree-root"></div>
+<div class="tree-layout">
+  <div class="tree-scroll">
+    <div class="tree-wrap" id="tree-root"></div>
+  </div>
+  <div class="detail-pane" id="detail-pane">
+    <div class="detail-inner" id="detail-inner"></div>
+  </div>
+</div>
 
-<div class="task-detail" id="detail-panel">
-  <button class="detail-close" onclick="closeDetail()">&#x2715;</button>
-  <div id="detail-content"></div>
+<!-- add modal -->
+<div class="add-modal-bg" id="add-bg" onclick="if(event.target===this)closeAddModal()">
+  <div class="add-modal">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+      <h3>Tambah deliverable</h3>
+      <button onclick="closeAddModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-tertiary)">&#x2715;</button>
+    </div>
+    <p class="sub" id="add-sub"></p>
+    <div id="add-form"></div>
+  </div>
 </div>
 
 <script>
 document.write(closeShell());
 
-const PHASE_ORDER = ['concept', 'preliminary', 'contract', 'functional'];
+const tasks = getTasks();
+const ME    = getCurrentUser();
+const MR    = ROLES[ME.role];
+const phaseFilter = new URLSearchParams(location.search).get('phase');
+const treeState   = {};
+let activeTask    = null;
 
-function getGroups(filterPhase) {
-  const groups = {};
-  RAW_DATA.forEach(g => {
-    if (filterPhase && g.phase !== filterPhase) return;
-    const key = g.phase + '_' + g.cat;
-    if (!groups[key]) groups[key] = { phase: g.phase, cat: g.cat, items: [] };
-    g.items.forEach(label => {
-      const t = tasks.find(t => t.label === label && t.phase === g.phase && t.cat === g.cat);
-      groups[key].items.push(t || { label, status: 'todo' });
+if (!canAddDeliverable()) {
+  const b = document.getElementById('add-btn');
+  b.style.opacity='.4'; b.style.cursor='not-allowed'; b.title='Perlu Supervisor ke atas';
+}
+
+/* ================================================================ TREE */
+const PHASE_ORDER = ['concept','preliminary','contract','functional'];
+
+function getGroups(fp) {
+  const g = {}; const r = fp || phaseFilter;
+  RAW_DATA.forEach(d => {
+    if (r && d.phase !== r) return;
+    const key = d.phase+'_'+d.cat;
+    if (!g[key]) g[key] = { phase:d.phase, cat:d.cat, items:[] };
+    d.items.forEach(label => {
+      const t = tasks.find(t=>t.label===label&&t.phase===d.phase&&t.cat===d.cat);
+      g[key].items.push(t||{label,status:'todo',approval:{steps:APPROVAL_STEPS.map(s=>({role:s.role,approved:false}))}});
     });
   });
-  return groups;
-}
-
-function getPhasePct(groups, phase) {
-  let done = 0, total = 0;
-  Object.values(groups).forEach(g => {
-    if (g.phase !== phase) return;
-    g.items.forEach(i => { total++; if (i.status === 'done') done++; });
+  /* include custom tasks */
+  tasks.filter(t=>t.custom&&(!r||t.phase===r)).forEach(t => {
+    const key=t.phase+'_'+t.cat;
+    if (!g[key]) g[key]={phase:t.phase,cat:t.cat,items:[]};
+    if (!g[key].items.find(i=>i.label===t.label)) g[key].items.push(t);
   });
-  return total ? Math.round(done / total * 100) : 0;
+  return g;
 }
 
-function renderTree(filterPhase) {
+function renderTree(fp) {
   const root = document.getElementById('tree-root');
   root.innerHTML = '';
-  const groups = getGroups(filterPhase);
+  const groups = getGroups(fp);
   const byPhase = {};
-  Object.values(groups).forEach(g => {
-    if (!byPhase[g.phase]) byPhase[g.phase] = [];
-    byPhase[g.phase].push(g);
-  });
+  Object.values(groups).forEach(g => { if(!byPhase[g.phase])byPhase[g.phase]=[]; byPhase[g.phase].push(g); });
 
   PHASE_ORDER.forEach(ph => {
     if (!byPhase[ph]) return;
-    const pKey = 'ph_' + ph;
+    const pKey = 'ph_'+ph;
     if (treeState[pKey] === undefined) treeState[pKey] = true;
-    const pct = getPhasePct(groups, ph);
+    let pdone=0, ptotal=0;
+    byPhase[ph].forEach(g => g.items.forEach(i => { ptotal++; if(i.status==='done')pdone++; }));
+    const pct = ptotal ? Math.round(pdone/ptotal*100) : 0;
 
-    const phNode = makeNode();
-    const phRow = makeRow([
-      indent(0), toggleEl(pKey, treeState[pKey]),
+    const phNode = el('div');
+    const phRow  = makeRow([
+      ind(0), tog(pKey, treeState[pKey]),
       dot(PHASES[ph].color),
-      label(PHASES[ph].label, 'bold'),
-      chipEl(pct + '%', pct === 100 ? 'chip-done' : pct > 50 ? 'chip-prog' : 'chip-todo')
+      lbl(PHASES[ph].label,'bold'),
+      chipEl(pct+'%', pct===100?'chip-done':pct>50?'chip-prog':'chip-todo')
     ]);
     phRow.onclick = () => toggleNode(pKey);
     phNode.appendChild(phRow);
 
-    const phCh = children(pKey, treeState[pKey]);
+    const phCh = chEl(pKey, treeState[pKey]);
     byPhase[ph].forEach(g => {
-      const gKey = g.phase + '_' + g.cat;
+      const gKey = g.phase+'_'+g.cat;
       if (treeState[gKey] === undefined) treeState[gKey] = false;
-      const done = g.items.filter(i => i.status === 'done').length;
+      const gDone = g.items.filter(i=>i.status==='done').length;
 
-      const catNode = makeNode();
-      const catRow = makeRow([
-        indent(16), toggleEl(gKey, treeState[gKey]),
+      const catNode = el('div');
+      const catRow  = makeRow([
+        ind(18), tog(gKey, treeState[gKey]),
         dot(PHASES[ph].color, .5),
-        label(capitalize(g.cat), 'bold sm'),
-        span2(done + '/' + g.items.length)
+        lbl(cap(g.cat),'bold', 14),
+        sp2(gDone+'/'+g.items.length)
       ]);
       catRow.onclick = () => toggleNode(gKey);
       catNode.appendChild(catRow);
 
-      const catCh = children(gKey, treeState[gKey]);
+      const catCh = chEl(gKey, treeState[gKey]);
       g.items.forEach(t => {
-        const sc = STATUS_CFG[t.status];
+        const sc  = STATUS_CFG[t.status];
+        const apL = getApprovalStatus(t).level;
         const taskRow = makeRow([
-          indent(32), toggleEl('', false, true),
-          dot('#888780', .5, 6),
-          label(t.label, 'sm'),
-          chipEl(sc.label, sc.chip)
+          ind(36), tog('','',true),
+          dot('#888780',.5,7),
+          lbl(t.label,'', 14),
+          chipEl(sc.label, sc.chip),
+          chipEl(apL+'/4 ✓', 'appr-chip appr-chip-'+apL)
         ]);
         taskRow.onclick = (e) => { e.stopPropagation(); openDetail(t); };
+        if (activeTask && activeTask.id === t.id) taskRow.classList.add('selected');
         catCh.appendChild(taskRow);
       });
       catNode.appendChild(catCh);
@@ -173,116 +206,145 @@ function renderTree(filterPhase) {
   });
 }
 
-function makeNode() { const d = document.createElement('div'); return d; }
-function makeRow(els) {
-  const r = document.createElement('div');
-  r.className = 'tree-row';
-  els.forEach(e => r.appendChild(e));
-  return r;
+/* helpers */
+function el(tag) { return document.createElement(tag); }
+function ind(w)  { const s=el('span'); s.style.cssText=`flex-shrink:0;width:${w}px`; return s; }
+function tog(key, open, leaf) {
+  const s=el('span'); s.className='toggle'+(leaf?' leaf':open?' open':'');
+  if (!leaf) s.id='tog-'+key; s.innerHTML='&#9654;'; return s;
 }
-function indent(w) {
-  const s = document.createElement('span');
-  s.style.cssText = `flex-shrink:0;width:${w}px`;
+function dot(color, op, sz) {
+  const s=el('span'); s.className='t-dot';
+  s.style.cssText=`background:${color};${op?'opacity:'+op+';':''}${sz?'width:'+sz+'px;height:'+sz+'px;':''}`;
   return s;
 }
-function toggleEl(key, open, leaf) {
-  const s = document.createElement('span');
-  s.className = 'toggle' + (leaf ? ' leaf' : (open ? ' open' : ''));
-  s.id = 'tog-' + key;
-  s.innerHTML = '&#9654;';
-  return s;
+function lbl(text, cls, fs) {
+  const s=el('span'); s.className='t-label '+(cls||'');
+  if(fs) s.style.fontSize=fs+'px';
+  s.textContent=text; return s;
 }
-function dot(color, opacity, size) {
-  const s = document.createElement('span');
-  s.className = 't-dot';
-  s.style.cssText = `background:${color};flex-shrink:0;${opacity ? 'opacity:' + opacity + ';' : ''}${size ? 'width:' + size + 'px;height:' + size + 'px;' : ''}`;
-  return s;
-}
-function label(text, cls) {
-  const s = document.createElement('span');
-  s.className = 't-label ' + (cls || '');
-  s.textContent = text;
-  return s;
-}
-function span2(text) {
-  const s = document.createElement('span');
-  s.className = 't-count';
-  s.textContent = text;
-  return s;
-}
-function chipEl(text, cls) {
-  const s = document.createElement('span');
-  s.className = 'chip ' + cls;
-  s.textContent = text;
-  return s;
-}
-function children(key, open) {
-  const d = document.createElement('div');
-  d.className = 'children';
-  d.id = 'ch-' + key;
-  d.style.display = open ? 'block' : 'none';
-  return d;
-}
-function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function sp2(text) { const s=el('span'); s.className='t-count'; s.textContent=text; return s; }
+function chipEl(text, cls) { const s=el('span'); s.className='chip '+cls; s.textContent=text; return s; }
+function makeRow(els) { const r=el('div'); r.className='tree-row'; els.forEach(e=>r.appendChild(e)); return r; }
+function chEl(key, open) { const d=el('div'); d.className='children'; d.id='ch-'+key; d.style.display=open?'block':'none'; return d; }
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
 
 function toggleNode(key) {
   treeState[key] = !treeState[key];
-  const tog = document.getElementById('tog-' + key);
-  const ch  = document.getElementById('ch-'  + key);
-  if (tog) tog.classList.toggle('open', treeState[key]);
-  if (ch)  ch.style.display = treeState[key] ? 'block' : 'none';
+  const t=document.getElementById('tog-'+key), c=document.getElementById('ch-'+key);
+  if(t) t.classList.toggle('open',treeState[key]);
+  if(c) c.style.display=treeState[key]?'block':'none';
 }
+function expandAll()  { Object.keys(treeState).forEach(k=>treeState[k]=true);  renderTree(); }
+function collapseAll(){ Object.keys(treeState).forEach(k=>treeState[k]=false); renderTree(); }
 
-function expandAll()  { Object.keys(treeState).forEach(k => treeState[k] = true);  renderTree(phaseFilter); }
-function collapseAll(){ Object.keys(treeState).forEach(k => treeState[k] = false); renderTree(phaseFilter); }
-
+/* ================================================================ DETAIL */
 function openDetail(task) {
-  selectedTask = task;
-  const ph = PHASES[task.phase];
-  const sc = STATUS_CFG[task.status];
-  document.getElementById('detail-content').innerHTML = `
-    <p style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em">Deliverable</p>
-    <p class="detail-title">${task.label}</p>
-    <div class="detail-row"><span class="detail-key">Phase</span><span style="font-size:11px;padding:2px 7px;border-radius:8px;background:${ph.bg};color:${ph.tc}">${ph.label}</span></div>
-    <div class="detail-row"><span class="detail-key">Category</span><span style="text-transform:capitalize">${task.cat}</span></div>
-    <div class="detail-row"><span class="detail-key">Status</span><span class="chip ${sc.chip}">${sc.label}</span></div>
-    <div class="detail-row"><span class="detail-key">Approval</span><span class="appr-chip appr-chip-${getApprovalStatus(task).level}">${getApprovalStatus(task).level}/4 disetujui</span></div>
-    <p style="font-size:11px;font-weight:500;color:var(--text-secondary);margin-top:14px;margin-bottom:8px">Approval flow</p>
-    ${approvalTrackHtml(task)}
-    <div id="detail-appr-act" style="margin-top:10px">${approvalActionsHtml(task)}</div>
-    <p style="font-size:12px;font-weight:500;margin-top:16px;margin-bottom:8px">Change status</p>
-    <div class="status-btns">
-      ${Object.entries(STATUS_CFG).map(([s, c]) =>
-        `<button class="status-btn${task.status === s ? ' active' : ''}${s==='done'&&ROLES[getCurrentUser().role].level<3?' disabled':''}" onclick="setStatus('${task.id}','${s}')">${c.label}</button>`
-      ).join('')}
-    </div>`;
-  document.getElementById('detail-panel').classList.add('open');
-}
+  activeTask = task;
+  const ph = PHASES[task.phase]; const sc = STATUS_CFG[task.status];
+  const apSt = getApprovalStatus(task);
+  const docs = (getDocs()||[]).filter(d=>d.taskId==task.id);
 
-function setStatus(id, status) {
-  const t = tasks.find(t => t.id == id);
-  if (!t) return;
-  if (status === 'done' && ROLES[getCurrentUser().role].level < 3) return;
-  t.status = status;
-  saveTasks(tasks);
-  openDetail(t);
-  renderTree(phaseFilter);
-}
-function handleApprove(taskId) {
-  const note = (document.getElementById('appr-note-'+taskId)||{}).value||'';
-  if (doApprove(tasks, taskId, note)) { const t=tasks.find(t=>t.id==taskId); openDetail(t); renderTree(phaseFilter); }
-}
-function handleReject(taskId) {
-  const note = (document.getElementById('appr-note-'+taskId)||{}).value||'';
-  if (!confirm('Reset semua approval?')) return;
-  if (doReject(tasks, taskId, note)) { const t=tasks.find(t=>t.id==taskId); openDetail(t); renderTree(phaseFilter); }
+  document.getElementById('detail-inner').innerHTML = `
+    <button class="d-close" onclick="closeDetail()">&#x2715;</button>
+    <div class="d-breadcrumb">${ph.label} &rsaquo; ${cap(task.cat)}</div>
+    ${task.custom?`<span class="chip" style="background:var(--amber-50);color:#633806;margin-bottom:8px;display:inline-block">Custom deliverable</span>`:''}
+    <div class="d-title">${task.label}</div>
+
+    <div class="d-row"><span class="d-key">Status</span><span class="chip ${sc.chip}">${sc.label}</span></div>
+    <div class="d-row"><span class="d-key">Fase</span><span style="font-size:12px;padding:2px 7px;border-radius:8px;background:${ph.bg};color:${ph.tc};font-weight:500">${ph.label}</span></div>
+    <div class="d-row"><span class="d-key">Kategori</span><span>${cap(task.cat)}</span></div>
+    <div class="d-row"><span class="d-key">Approval</span><span class="chip appr-chip-${apSt.level}">${apSt.level}/4 disetujui</span></div>
+    <div class="d-row"><span class="d-key">Prioritas</span><span>${['Tinggi','Sedang','Rendah'][task.id%3]}</span></div>
+
+    <div class="d-sec">Ganti status</div>
+    <div class="st-grid">
+      ${Object.entries(STATUS_CFG).map(([s,c])=>
+        `<button class="st-btn${task.status===s?' active':''}${s==='done'&&MR.level<3?' disabled':''}"
+          ${s==='done'&&MR.level<3?'disabled title="Gunakan approval flow"':''}
+          onclick="setStatus(${task.id},'${s}')">${c.label}</button>`
+      ).join('')}
+    </div>
+    ${MR.level<3?`<p style="font-size:11px;color:var(--text-tertiary);margin-bottom:12px">Status "Done" hanya lewat approval flow atau role Manager ke atas.</p>`:''}
+
+    <div class="d-sec">Approval flow</div>
+    ${approvalTrackHtml(task)}
+    <div style="margin-top:10px" id="d-appr-act">${approvalActionsHtml(task)}</div>
+
+    <div class="d-sec">Dokumen terkait</div>
+    <div class="mini-upload" onclick="document.getElementById('d-file-${task.id}').click()">
+      <p>&#8679; Klik untuk unggah dokumen ke item ini</p>
+    </div>
+    <input type="file" id="d-file-${task.id}" style="display:none" multiple onchange="uploadToTask(${task.id},this.files,'d-docs-${task.id}')">
+    <div id="d-docs-${task.id}">
+      ${renderDocList(task.id)}
+    </div>`;
+
+  document.getElementById('detail-pane').classList.add('open');
+  renderTree();
 }
 
 function closeDetail() {
-  document.getElementById('detail-panel').classList.remove('open');
+  activeTask = null;
+  document.getElementById('detail-pane').classList.remove('open');
+  renderTree();
+}
+function setStatus(id, status) {
+  const t=tasks.find(t=>t.id==id); if(!t)return;
+  if(status==='done'&&MR.level<3)return;
+  t.status=status; saveTasks(tasks); openDetail(t);
+}
+function handleApprove(taskId) {
+  const note=(document.getElementById('appr-note-'+taskId)||{}).value||'';
+  if(doApprove(tasks,taskId,note)){ const t=tasks.find(t=>t.id==taskId); openDetail(t); }
+}
+function handleReject(taskId) {
+  const note=(document.getElementById('appr-note-'+taskId)||{}).value||'';
+  if(!confirm('Reset semua approval?'))return;
+  if(doReject(tasks,taskId,note)){ const t=tasks.find(t=>t.id==taskId); openDetail(t); }
 }
 
-renderTree(phaseFilter);
+/* ================================================================ DOC UPLOAD TO TASK */
+
+function uploadToTask(taskId, files) {
+  const docs = getDocs();
+  Array.from(files).forEach(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    docs.push({ id:Date.now()+Math.random(), name:f.name, size:f.size, ext, taskId, phase:tasks.find(t=>t.id==taskId)?.phase||'contract', addedBy:ME.name, time:'Baru saja' });
+  });
+  saveDocs(docs);
+  const taskDocs = docs.filter(d=>d.taskId==taskId);
+  const el = document.getElementById('d-docs-'+taskId);
+  if (el) el.innerHTML = taskDocs.map(d=>`<div class="mini-doc"><span>${d.name}</span><span style="font-size:11px;color:var(--text-tertiary);margin-left:auto">${fmtSize(d.size)}</span></div>`).join('');
+}
+
+/* ================================================================ ADD DELIVERABLE */
+function openAddModal() {
+  if (!canAddDeliverable()) return;
+  document.getElementById('add-sub').textContent = `Login sebagai ${ME.name} (${MR.label})`;
+  document.getElementById('add-form').innerHTML = `
+    <div class="form-row"><label>Nama deliverable *</label><input type="text" id="f-label" placeholder="Contoh: Structural fire protection plan"></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Fase *</label><select id="f-phase">${Object.entries(PHASES).map(([k,p])=>`<option value="${k}">${p.label}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Kategori *</label><select id="f-cat">${['hull','machinery','electrical','hvac','production'].map(c=>`<option value="${c}">${cap(c)}</option>`).join('')}</select></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+      <button class="btn" onclick="closeAddModal()">Batal</button>
+      <button class="btn btn-blue" onclick="submitAdd()">Tambah deliverable</button>
+    </div>`;
+  document.getElementById('add-bg').classList.add('open');
+}
+function closeAddModal() { document.getElementById('add-bg').classList.remove('open'); }
+function submitAdd() {
+  const label=(document.getElementById('f-label')||{}).value?.trim();
+  const phase=(document.getElementById('f-phase')||{}).value;
+  const cat  =(document.getElementById('f-cat')||{}).value;
+  if(!label){alert('Nama deliverable wajib diisi.');return;}
+  addDeliverable(tasks,label,phase,cat);
+  closeAddModal(); renderTree();
+}
+
+renderTree();
 </script>
 </body>
 </html>

@@ -48,14 +48,14 @@ body {
   font-family: var(--font);
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.65;
   min-height: 100vh;
 }
 
 /* ---- Layout shell ---- */
 .app        { display: flex; flex-direction: column; min-height: 100vh; }
-.layout     { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 50px); }
+.layout     { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 56px); }
 .content    { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 
 /* ---- Topbar ---- */
@@ -64,7 +64,7 @@ body {
   border-bottom: 0.5px solid var(--border-light);
   padding: 10px 20px;
   display: flex; align-items: center; gap: 12px;
-  height: 50px; flex-shrink: 0;
+  height: 56px; flex-shrink: 0;
 }
 .logo-box {
   width: 30px; height: 30px; background: var(--blue-600);
@@ -72,8 +72,8 @@ body {
   flex-shrink: 0;
 }
 .logo-box svg { width: 18px; height: 18px; }
-.logo-name   { font-size: 15px; font-weight: 500; color: var(--text-primary); }
-.logo-sub    { font-size: 12px; color: var(--text-tertiary); margin-left: 2px; }
+.logo-name   { font-size: 16px; font-weight: 500; color: var(--text-primary); }
+.logo-sub    { font-size: 13px; color: var(--text-tertiary); margin-left: 2px; }
 .topbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .avatar {
   width: 28px; height: 28px; border-radius: 50%;
@@ -89,12 +89,12 @@ body {
   padding: 12px 0; overflow-y: auto;
 }
 .nav-label {
-  font-size: 10px; font-weight: 500; color: var(--text-tertiary);
+  font-size: 11px; font-weight: 500; color: var(--text-tertiary);
   padding: 8px 16px 4px; letter-spacing: .06em; text-transform: uppercase;
 }
 .nav-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 7px 16px; font-size: 13px; color: var(--text-secondary);
+  padding: 8px 16px; font-size: 14px; color: var(--text-secondary);
   cursor: pointer; border-left: 2px solid transparent;
   text-decoration: none;
 }
@@ -110,19 +110,19 @@ body {
 .content-header {
   background: var(--bg-primary);
   border-bottom: 0.5px solid var(--border-light);
-  padding: 12px 20px; display: flex; align-items: center; gap: 10px;
+  padding: 13px 20px; display: flex; align-items: center; gap: 10px;
   flex-shrink: 0;
 }
-.page-title { font-size: 15px; font-weight: 500; }
+.page-title { font-size: 16px; font-weight: 500; }
 .badge {
-  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  font-size: 12px; padding: 3px 9px; border-radius: 10px;
   background: var(--blue-50); color: var(--blue-800); font-weight: 500;
 }
 .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 
 /* ---- Buttons ---- */
 .btn {
-  font-size: 12px; padding: 5px 12px;
+  font-size: 13px; padding: 6px 14px;
   border-radius: var(--radius-md);
   border: 0.5px solid var(--border-mid);
   background: var(--bg-primary); color: var(--text-primary);
@@ -134,7 +134,7 @@ body {
 
 /* ---- Chips / status ---- */
 .chip {
-  font-size: 10px; padding: 2px 7px;
+  font-size: 11px; padding: 3px 8px;
   border-radius: 8px; font-weight: 500; white-space: nowrap;
 }
 .chip-todo  { background: var(--gray-50);  color: var(--gray-600); }
@@ -152,9 +152,9 @@ body {
   background: var(--bg-secondary);
   border-radius: var(--radius-md); padding: 12px 16px;
 }
-.stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-.stat-val   { font-size: 22px; font-weight: 500; }
-.stat-sub   { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.stat-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.stat-val   { font-size: 24px; font-weight: 500; }
+.stat-sub   { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
 .prog-bg    { height: 4px; background: var(--border-light); border-radius: 2px; margin-top: 8px; overflow: hidden; }
 .prog-fill  { height: 4px; border-radius: 2px; }
 

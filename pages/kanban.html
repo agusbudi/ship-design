@@ -288,6 +288,18 @@ function renderLeft(task) {
     <div class="nc-btns">
       <button class="btn" onclick="document.getElementById('nc-txt').value=''">Batal</button>
       <button class="btn btn-blue" onclick="postComment()">Kirim komentar</button>
+    </div>
+    <div style="margin-top:18px;border-top:0.5px solid var(--border-light);padding-top:14px">
+      <div class="section-hd" style="margin-bottom:8px">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 2h7l3 3v7H2V2z" stroke="currentColor" stroke-width="1.1"/><path d="M9 2v3h3" stroke="currentColor" stroke-width="1.1"/></svg>
+        Dokumen terkait
+      </div>
+      <div style="border:1.5px dashed var(--border-mid);border-radius:var(--radius-md);padding:12px;text-align:center;cursor:pointer;margin-bottom:8px" onclick="document.getElementById('kv-file-${task.id}').click()" id="kv-drop-${task.id}">
+        <div style="font-size:13px;color:var(--text-secondary)">&#8679; Klik untuk unggah dokumen</div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">PDF, gambar, DWG — klik nama untuk preview</div>
+      </div>
+      <input type="file" id="kv-file-${task.id}" style="display:none" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.dwg,.docx,.xlsx" onchange="uploadToTask(${task.id},this.files,'kv-docs-${task.id}')">
+      <div id="kv-docs-${task.id}">${renderDocList(task.id)}</div>
     </div>`;
 }
 

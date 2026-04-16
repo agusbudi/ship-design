@@ -1,66 +1,80 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Dashboard — ShipDesign</title>
   <link rel="stylesheet" href="../css/style.css">
   <style>
-    .dash-body { padding: 0 20px 32px; }
+    .dash  { padding: 0 24px 40px; }
+    .welcome { padding: 20px 24px 0; }
+    .welcome-title { font-size: 22px; font-weight: 500; margin-bottom: 3px; }
+    .welcome-sub   { font-size: 14px; color: var(--text-secondary); }
 
-    /* phase progress */
-    .phase-bar-row { margin-bottom: 16px; }
-    .phase-bar-meta { display: flex; justify-content: space-between; margin-bottom: 5px; }
-    .phase-bar-name { font-size: 13px; color: var(--text-secondary); }
-    .phase-bar-stat { font-size: 12px; font-weight: 500; color: var(--text-primary); }
-    .pbar-bg { height: 10px; background: var(--bg-secondary); border-radius: 5px; overflow: hidden; }
-    .pbar-fill { height: 10px; border-radius: 5px; transition: width .5s ease; }
+    .stat-row { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; padding:18px 24px; }
+    .stat-card { background:var(--bg-secondary); border-radius:var(--radius-lg); padding:16px 18px; }
+    .stat-label { font-size:13px; color:var(--text-secondary); margin-bottom:6px; }
+    .stat-val   { font-size:28px; font-weight:500; }
+    .stat-sub   { font-size:12px; color:var(--text-tertiary); margin-top:3px; }
+    .prog-bg    { height:5px; background:var(--border-light); border-radius:3px; margin-top:10px; overflow:hidden; }
+    .prog-fill  { height:5px; border-radius:3px; }
 
-    /* category grid */
-    .cat-grid {
-      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 10px; margin-bottom: 24px;
-    }
-    .cat-card {
-      background: var(--bg-secondary); border-radius: var(--radius-md);
-      padding: 12px 14px;
-    }
-    .cat-name  { font-size: 11px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; text-transform: capitalize; }
-    .cat-pct   { font-size: 20px; font-weight: 500; color: var(--text-primary); }
-    .cat-sub   { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+    .two-col  { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+    .widget   { background:var(--bg-primary); border:0.5px solid var(--border-light); border-radius:var(--radius-lg); padding:18px 20px; }
+    .w-title  { font-size:14px; font-weight:500; color:var(--text-secondary); margin-bottom:14px; }
 
-    /* donut chart (pure CSS) */
-    .donut-wrap { display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; margin-bottom: 24px; }
-    .donut-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .donut-label { font-size: 12px; color: var(--text-secondary); }
+    .phase-bar { margin-bottom:16px; }
+    .phase-bar-top { display:flex; justify-content:space-between; margin-bottom:5px; font-size:13px; }
+    .phase-bar-name { color:var(--text-secondary); display:flex; align-items:center; gap:7px; }
+    .phase-bar-stat { font-weight:500; color:var(--text-primary); }
+    .pbar { height:10px; background:var(--bg-secondary); border-radius:5px; overflow:hidden; }
+    .pbar-fill { height:10px; border-radius:5px; }
+
+    .cat-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-bottom:20px; }
+    .cat-card { background:var(--bg-secondary); border-radius:var(--radius-md); padding:14px; }
+    .cat-name  { font-size:12px; font-weight:500; color:var(--text-secondary); text-transform:capitalize; margin-bottom:6px; }
+    .cat-pct   { font-size:22px; font-weight:500; }
+    .cat-sub   { font-size:11px; color:var(--text-tertiary); margin-top:2px; }
+
+    .appr-phase-row { padding:12px 18px; border-bottom:0.5px solid var(--border-light); }
+    .appr-phase-row:last-child { border-bottom:none; }
+    .appr-phase-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; font-size:13px; }
+    .appr-seg-bar { display:flex; height:9px; border-radius:5px; overflow:hidden; gap:1px; }
+    .appr-legend  { display:flex; gap:14px; margin-top:5px; }
+    .appr-legend span { font-size:11px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; }
+
+    /* bar chart */
+    .bar-chart { display:flex; align-items:flex-end; gap:8px; height:90px; }
+    .bc-col    { display:flex; flex-direction:column; align-items:center; flex:1; }
+    .bc-fill   { width:100%; border-radius:4px 4px 0 0; min-height:3px; }
+    .bc-label  { font-size:11px; color:var(--text-tertiary); margin-top:5px; text-align:center; line-height:1.3; }
 
     /* activity */
-    .activity-list {
-      background: var(--bg-primary); border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-lg); overflow: hidden;
-    }
-    .act-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 9px 14px; border-bottom: 0.5px solid var(--border-light);
-      font-size: 12px;
-    }
-    .act-row:last-child { border-bottom: none; }
-    .act-title { flex: 1; color: var(--text-primary); }
-    .act-ph { font-size: 11px; padding: 2px 7px; border-radius: 8px; font-weight: 500; white-space: nowrap; }
-    .act-time { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+    .activity  { background:var(--bg-primary); border:0.5px solid var(--border-light); border-radius:var(--radius-lg); overflow:hidden; }
+    .act-row   { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:0.5px solid var(--border-light); font-size:13px; }
+    .act-row:last-child { border-bottom:none; }
+    .act-title { flex:1; color:var(--text-primary); }
+    .act-ph    { font-size:11px; padding:2px 7px; border-radius:8px; font-weight:500; white-space:nowrap; }
+    .act-time  { font-size:11px; color:var(--text-tertiary); white-space:nowrap; }
 
-    /* mini bar chart */
-    .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 80px; margin: 0 0 6px; }
-    .bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; }
-    .bar-fill { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; }
-    .bar-col-label { font-size: 10px; color: var(--text-tertiary); margin-top: 4px; }
-
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-    .widget-box {
-      background: var(--bg-primary); border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-lg); padding: 16px;
+    /* upload zone */
+    .upload-zone {
+      border:1.5px dashed var(--border-mid); border-radius:var(--radius-lg);
+      padding:24px; text-align:center; cursor:pointer; transition:background .15s;
+      margin-bottom:16px;
     }
-    .widget-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 12px; }
+    .upload-zone:hover, .upload-zone.drag { background:var(--blue-50); border-color:#185FA5; }
+    .upload-icon { font-size:28px; margin-bottom:8px; }
+    .upload-title { font-size:14px; font-weight:500; color:var(--text-primary); margin-bottom:3px; }
+    .upload-sub   { font-size:12px; color:var(--text-tertiary); }
+    .upload-input { display:none; }
+    .doc-list     { display:flex; flex-direction:column; gap:8px; }
+    .doc-item     { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--bg-secondary); border-radius:var(--radius-md); font-size:13px; }
+    .doc-icon     { width:32px; height:32px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+    .doc-name     { flex:1; font-weight:500; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .doc-size     { font-size:11px; color:var(--text-tertiary); flex-shrink:0; }
+    .doc-del      { background:none; border:none; cursor:pointer; color:var(--text-tertiary); padding:2px 4px; border-radius:4px; font-size:14px; }
+    .doc-del:hover { color:var(--red-400); background:var(--red-50); }
+    .doc-phase    { font-size:11px; padding:2px 6px; border-radius:6px; background:var(--blue-50); color:var(--blue-800); flex-shrink:0; }
   </style>
 </head>
 <body>
@@ -69,166 +83,264 @@
 
 <div class="content-header">
   <span class="page-title">Dashboard</span>
-  <span class="badge">Progress overview</span>
+  <span class="badge" id="proj-badge">KRI Nusantara — Basic Design</span>
   <div class="header-right">
-    <button class="btn" onclick="location.reload()">Refresh</button>
+    <button class="btn" onclick="location.reload()">&#8635; Refresh</button>
   </div>
 </div>
 
-<div class="dash-body" id="dash-body"></div>
+<div class="welcome">
+  <div class="welcome-title" id="welcome-title">Selamat datang</div>
+  <div class="welcome-sub">Ringkasan progres proyek desain kapal KRI Nusantara</div>
+</div>
+
+<div class="stat-row" id="stat-row"></div>
+
+<div class="dash">
+  <div class="two-col">
+    <div class="widget">
+      <div class="w-title">Progress per fase</div>
+      <div id="phase-bars"></div>
+    </div>
+    <div class="widget">
+      <div class="w-title">Deliverable per fase</div>
+      <div class="bar-chart" id="bar-chart"></div>
+    </div>
+  </div>
+
+  <div class="w-title" style="margin-bottom:10px">Progress per kategori</div>
+  <div class="cat-grid" id="cat-grid"></div>
+
+  <div class="widget" style="margin-bottom:20px">
+    <div class="w-title">Approval progress per fase</div>
+    <div id="appr-bars"></div>
+  </div>
+
+  <div class="two-col">
+    <div class="widget">
+      <div class="w-title">Unggah dokumen</div>
+      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
+        <div class="upload-icon">&#128196;</div>
+        <div class="upload-title">Klik atau seret dokumen ke sini</div>
+        <div class="upload-sub">PDF, DOCX, XLSX, PNG, JPG — maks 50 MB per file</div>
+      </div>
+      <input type="file" id="file-input" class="upload-input" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.dwg,.zip" onchange="handleFiles(this.files)">
+      <div class="doc-list" id="doc-list"></div>
+    </div>
+    <div class="widget">
+      <div class="w-title">Aktivitas terbaru</div>
+      <div class="activity" id="activity"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 document.write(closeShell());
 
 const tasks = getTasks();
 
-function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+/* ---- welcome greeting ---- */
+(function() {
+  const u = getCurrentUser(); const h = new Date().getHours();
+  const gr = h<11?'Selamat pagi':'h<15?Selamat siang':'h<18?Selamat sore':'Selamat malam';
+  // simple approach
+  const g = h<11?'Selamat pagi':h<15?'Selamat siang':h<18?'Selamat sore':'Selamat malam';
+  document.getElementById('welcome-title').textContent = g+', '+u.name;
+})();
 
-function render() {
+/* ---- stat cards ---- */
+function renderStats() {
   const total   = tasks.length;
-  const done    = tasks.filter(t => t.status === 'done').length;
-  const inprog  = tasks.filter(t => t.status === 'in-progress').length;
-  const overdue = tasks.filter(t => t.status === 'overdue').length;
-  const todo    = tasks.filter(t => t.status === 'todo').length;
-  const pct     = Math.round(done / total * 100);
-
-  const fullyApproved = tasks.filter(t => t.approval && t.approval.steps.every(s=>s.approved)).length;
-  const pendingAppr   = tasks.filter(t => t.approval && !t.approval.steps.every(s=>s.approved) && t.approval.steps.some(s=>s.approved)).length;
-  const stats = [
-    { label: 'Total deliverables', val: total,         sub: 'semua fase',           color: null },
-    { label: 'Selesai',            val: done,           sub: pct + '% complete',     color: '#3B6D11', fill: '#639922' },
-    { label: 'Fully approved',     val: fullyApproved,  sub: '4/4 level disetujui',  color: '#3C3489', fill: '#7F77DD' },
-    { label: 'Terlambat',          val: overdue,        sub: 'perlu perhatian',      color: '#A32D2D', fill: '#E24B4A' },
+  const done    = tasks.filter(t=>t.status==='done').length;
+  const inprog  = tasks.filter(t=>t.status==='in-progress').length;
+  const overdue = tasks.filter(t=>t.status==='overdue').length;
+  const fullyOk = tasks.filter(t=>t.approval&&t.approval.steps.every(s=>s.approved)).length;
+  const pct     = Math.round(done/total*100);
+  const cards = [
+    { label:'Total deliverables', val:total,   sub:'semua fase',        color:null },
+    { label:'Selesai',            val:done,     sub:pct+'% complete',   color:'#3B6D11', fill:'#639922' },
+    { label:'Fully approved',     val:fullyOk,  sub:'4/4 level ✓',     color:'#3C3489', fill:'#7F77DD' },
+    { label:'Terlambat',          val:overdue,  sub:'perlu perhatian',  color:'#A32D2D', fill:'#E24B4A' },
   ];
-
-  let html = `<div class="stat-row">`;
-  stats.forEach(s => {
-    const w = s.fill ? Math.round(s.val / total * 100) : 0;
-    html += `<div class="stat-card">
-      <div class="stat-label">${s.label}</div>
-      <div class="stat-val"${s.color ? ` style="color:${s.color}"` : ''}>${s.val}</div>
-      <div class="stat-sub">${s.sub}</div>
-      ${s.fill ? `<div class="prog-bg"><div class="prog-fill" style="width:${w}%;background:${s.fill}"></div></div>` : ''}
+  document.getElementById('stat-row').innerHTML = cards.map(c => {
+    const w = c.fill ? Math.round(c.val/total*100) : 0;
+    return `<div class="stat-card">
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-val"${c.color?` style="color:${c.color}"`:''} >${c.val}</div>
+      <div class="stat-sub">${c.sub}</div>
+      ${c.fill?`<div class="prog-bg"><div class="prog-fill" style="width:${w}%;background:${c.fill}"></div></div>`:''}
     </div>`;
-  });
-  html += `</div>`;
+  }).join('');
+}
 
-  /* phase progress */
-  html += `<div class="dash-body"><div class="section-title" style="padding-top:8px">Progress per fase</div>`;
-  Object.entries(PHASES).forEach(([key, p]) => {
-    const pt = tasks.filter(t => t.phase === key);
-    const pd = pt.filter(t => t.status === 'done').length;
-    const pp = pt.length ? Math.round(pd / pt.length * 100) : 0;
-    html += `<div class="phase-bar-row">
-      <div class="phase-bar-meta">
-        <span class="phase-bar-name"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${p.color};margin-right:6px"></span>${p.label}</span>
-        <span class="phase-bar-stat">${pd} / ${pt.length} &nbsp; ${pp}%</span>
+/* ---- phase bars ---- */
+function renderPhaseBars() {
+  document.getElementById('phase-bars').innerHTML = Object.entries(PHASES).map(([key,p]) => {
+    const pt = tasks.filter(t=>t.phase===key);
+    const pd = pt.filter(t=>t.status==='done').length;
+    const pp = pt.length ? Math.round(pd/pt.length*100) : 0;
+    return `<div class="phase-bar">
+      <div class="phase-bar-top">
+        <span class="phase-bar-name"><span style="width:10px;height:10px;border-radius:2px;background:${p.color};flex-shrink:0;display:inline-block"></span>${p.label}</span>
+        <span class="phase-bar-stat">${pd}/${pt.length} &nbsp; ${pp}%</span>
       </div>
-      <div class="pbar-bg"><div class="pbar-fill" style="width:${pp}%;background:${p.color}"></div></div>
+      <div class="pbar"><div class="pbar-fill" style="width:${pp}%;background:${p.color}"></div></div>
     </div>`;
-  });
+  }).join('');
+}
 
-  /* category cards */
-  html += `<div class="section-title" style="margin-top:20px">Progres per kategori</div>
-  <div class="cat-grid">`;
-  ['hull','machinery','electrical','hvac','production'].forEach(cat => {
-    const ct = tasks.filter(t => t.cat === cat);
-    const cd = ct.filter(t => t.status === 'done').length;
-    const cp = ct.length ? Math.round(cd / ct.length * 100) : 0;
-    html += `<div class="cat-card">
-      <div class="cat-name">${capitalize(cat)}</div>
+/* ---- bar chart ---- */
+function renderBarChart() {
+  const maxC = Math.max(...Object.keys(PHASES).map(k=>tasks.filter(t=>t.phase===k).length));
+  document.getElementById('bar-chart').innerHTML = Object.entries(PHASES).map(([key,p]) => {
+    const count = tasks.filter(t=>t.phase===key).length;
+    const h = Math.round(count/maxC*78);
+    return `<div class="bc-col">
+      <div class="bc-fill" style="height:${h}px;background:${p.color}"></div>
+      <div class="bc-label">${p.label.split(' ')[0]}<br>${count}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---- cat grid ---- */
+function renderCatGrid() {
+  document.getElementById('cat-grid').innerHTML = ['hull','machinery','electrical','hvac','production'].map(cat => {
+    const ct = tasks.filter(t=>t.cat===cat);
+    const cd = ct.filter(t=>t.status==='done').length;
+    const cp = ct.length ? Math.round(cd/ct.length*100) : 0;
+    return `<div class="cat-card">
+      <div class="cat-name">${cat}</div>
       <div class="cat-pct">${cp}%</div>
       <div class="cat-sub">${cd}/${ct.length} selesai</div>
     </div>`;
-  });
-  html += `</div>`;
+  }).join('');
+}
 
-  /* two-col: bar chart + status breakdown */
-  html += `<div class="two-col">
-    <div class="widget-box">
-      <div class="widget-title">Deliverable per fase</div>
-      <div class="bar-chart">`;
-  const maxCount = Math.max(...Object.keys(PHASES).map(k => tasks.filter(t => t.phase === k).length));
-  Object.entries(PHASES).forEach(([key, p]) => {
-    const count = tasks.filter(t => t.phase === key).length;
-    const h = Math.round(count / maxCount * 70);
-    html += `<div class="bar-col">
-      <div class="bar-fill" style="height:${h}px;background:${p.color}"></div>
-      <div class="bar-col-label">${p.label.split(' ')[0]}</div>
-    </div>`;
-  });
-  html += `</div></div>
-    <div class="widget-box">
-      <div class="widget-title">Status breakdown</div>`;
-  const statusColors = { 'todo': '#888780', 'in-progress': '#185FA5', 'done': '#639922', 'overdue': '#E24B4A' };
-  Object.entries(STATUS_CFG).forEach(([s, c]) => {
-    const count = tasks.filter(t => t.status === s).length;
-    const w = Math.round(count / total * 100);
-    html += `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-        <span style="color:var(--text-secondary)">${c.label}</span>
-        <span style="font-weight:500">${count}</span>
-      </div>
-      <div style="height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden">
-        <div style="height:6px;width:${w}%;background:${statusColors[s]};border-radius:3px"></div>
-      </div>
-    </div>`;
-  });
-  html += `</div></div>`;
-
-  /* approval overview */
-  html += `<div class="section-title" style="margin-top:4px">Approval progress per fase</div>
-  <div style="background:var(--bg-primary);border:0.5px solid var(--border-light);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:24px">`;
-  Object.entries(PHASES).forEach(([key,p]) => {
+/* ---- approval bars ---- */
+function renderApprBars() {
+  document.getElementById('appr-bars').innerHTML = Object.entries(PHASES).map(([key,p]) => {
     const pt = tasks.filter(t=>t.phase===key);
     const fa = pt.filter(t=>t.approval&&t.approval.steps.every(s=>s.approved)).length;
-    const p1 = pt.filter(t=>t.approval&&t.approval.steps.filter(s=>s.approved).length===1).length;
-    const p2 = pt.filter(t=>t.approval&&t.approval.steps.filter(s=>s.approved).length===2).length;
     const p3 = pt.filter(t=>t.approval&&t.approval.steps.filter(s=>s.approved).length===3).length;
-    const p0 = pt.length - fa - p1 - p2 - p3;
-    html += `<div style="padding:10px 16px;border-bottom:0.5px solid var(--border-light)">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:12px;font-weight:500;color:var(--text-secondary)">${p.label}</span>
-        <span style="font-size:11px;color:var(--text-tertiary)">${fa}/${pt.length} fully approved</span>
+    const p2 = pt.filter(t=>t.approval&&t.approval.steps.filter(s=>s.approved).length===2).length;
+    const p1 = pt.filter(t=>t.approval&&t.approval.steps.filter(s=>s.approved).length===1).length;
+    const p0 = pt.length-fa-p3-p2-p1;
+    return `<div class="appr-phase-row">
+      <div class="appr-phase-top">
+        <span style="display:flex;align-items:center;gap:7px;font-weight:500"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span>${p.label}</span>
+        <span style="font-size:12px;color:var(--text-tertiary)">${fa}/${pt.length} fully approved</span>
       </div>
-      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;gap:1px">
-        <div style="flex:${fa};background:#3B6D11;min-width:${fa?2:0}px" title="Fully approved: ${fa}"></div>
-        <div style="flex:${p3};background:#7F77DD;min-width:${p3?2:0}px" title="3/4: ${p3}"></div>
-        <div style="flex:${p2};background:#185FA5;min-width:${p2?2:0}px" title="2/4: ${p2}"></div>
-        <div style="flex:${p1};background:#85B7EB;min-width:${p1?2:0}px" title="1/4: ${p1}"></div>
-        <div style="flex:${p0};background:var(--bg-secondary);min-width:${p0?2:0}px" title="Pending: ${p0}"></div>
+      <div class="appr-seg-bar">
+        ${fa?`<div style="flex:${fa};background:#3B6D11;min-width:3px"></div>`:''}
+        ${p3?`<div style="flex:${p3};background:#7F77DD;min-width:2px"></div>`:''}
+        ${p2?`<div style="flex:${p2};background:#185FA5;min-width:2px"></div>`:''}
+        ${p1?`<div style="flex:${p1};background:#85B7EB;min-width:2px"></div>`:''}
+        ${p0?`<div style="flex:${p0};background:var(--bg-secondary);min-width:2px"></div>`:''}
       </div>
-      <div style="display:flex;gap:12px;margin-top:5px">
-        <span style="font-size:10px;color:#3B6D11">&#9632; 4/4: ${fa}</span>
-        <span style="font-size:10px;color:#185FA5">&#9632; 2-3/4: ${p2+p3}</span>
-        <span style="font-size:10px;color:#85B7EB">&#9632; 1/4: ${p1}</span>
-        <span style="font-size:10px;color:var(--text-tertiary)">&#9632; Pending: ${p0}</span>
+      <div class="appr-legend">
+        <span><span style="width:8px;height:8px;background:#3B6D11;border-radius:2px;display:inline-block"></span>4/4: ${fa}</span>
+        <span><span style="width:8px;height:8px;background:#185FA5;border-radius:2px;display:inline-block"></span>2–3/4: ${p2+p3}</span>
+        <span><span style="width:8px;height:8px;background:#85B7EB;border-radius:2px;display:inline-block"></span>1/4: ${p1}</span>
+        <span><span style="width:8px;height:8px;background:var(--gray-200);border-radius:2px;display:inline-block"></span>Pending: ${p0}</span>
       </div>
     </div>`;
-  });
-  html += `</div>`;
+  }).join('');
+}
 
-  /* recent activity */
-  html += `<div class="section-title">Aktivitas terbaru</div>
-  <div class="activity-list">`;
-  const recent = tasks.filter(t => t.status !== 'todo').slice(0, 8);
-  const times = ['2 mnt lalu','5 mnt lalu','12 mnt lalu','1 jam lalu','3 jam lalu','Kemarin','Kemarin','2 hari lalu'];
-  recent.forEach((t, i) => {
-    const ph = PHASES[t.phase];
-    const sc = STATUS_CFG[t.status];
-    html += `<div class="act-row">
+/* ---- activity ---- */
+function renderActivity() {
+  const recent = tasks.filter(t=>t.status!=='todo').slice(0,8);
+  const times  = ['2 mnt lalu','5 mnt lalu','12 mnt lalu','1 jam lalu','3 jam lalu','Kemarin','Kemarin','2 hari lalu'];
+  document.getElementById('activity').innerHTML = recent.map((t,i) => {
+    const ph = PHASES[t.phase]; const sc = STATUS_CFG[t.status];
+    return `<div class="act-row">
       <span class="act-ph" style="background:${ph.bg};color:${ph.tc}">${ph.label.split(' ')[0]}</span>
       <span class="act-title">${t.label}</span>
       <span class="chip ${sc.chip}">${sc.label}</span>
       <span class="act-time">${times[i]}</span>
     </div>`;
-  });
-  html += `</div></div>`;
-
-  document.getElementById('dash-body').innerHTML = html;
+  }).join('');
 }
 
-render();
+/* ================================================================
+   DOCUMENT UPLOAD
+   ================================================================ */
+function getDocs() { try { const s=sessionStorage.getItem('sd_docs'); return s?JSON.parse(s):[]; } catch(e){return[];} }
+function saveDocs(d) { try { sessionStorage.setItem('sd_docs',JSON.stringify(d)); } catch(e){} }
+
+const DOC_ICONS = { pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊', png:'🖼', jpg:'🖼', jpeg:'🖼', dwg:'📐', zip:'📦' };
+const DOC_COLORS= { pdf:'#FAECE7', doc:'#E6F1FB', docx:'#E6F1FB', xls:'#EAF3DE', xlsx:'#EAF3DE', png:'#EEEDFE', jpg:'#EEEDFE', jpeg:'#EEEDFE', dwg:'#FAEEDA', zip:'#F1EFE8' };
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes+'B';
+  if (bytes < 1024*1024) return Math.round(bytes/1024)+'KB';
+  return (bytes/1024/1024).toFixed(1)+'MB';
+}
+
+function handleFiles(files) {
+  const docs = getDocs();
+  Array.from(files).forEach(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    docs.push({ id:Date.now()+Math.random(), name:f.name, size:f.size, ext, phase:'contract', addedBy:getCurrentUser().name, time:'Baru saja' });
+  });
+  saveDocs(docs); renderDocs();
+}
+
+function renderDocs() {
+  const docs = getDocs();
+  const list = document.getElementById('doc-list');
+  if (!docs.length) { list.innerHTML = `<p style="font-size:13px;color:var(--text-tertiary);text-align:center;padding:8px 0">Belum ada dokumen diunggah.</p>`; return; }
+  list.innerHTML = docs.map(d => {
+    const ext = d.ext||'file';
+    const icon = DOC_ICONS[ext]||'📎';
+    const bg   = DOC_COLORS[ext]||'#F1EFE8';
+    return `<div class="doc-item">
+      <div class="doc-icon" style="background:${bg}">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div class="doc-name">${d.name}</div>
+        <div style="font-size:11px;color:var(--text-tertiary)">${d.addedBy} &middot; ${d.time}</div>
+      </div>
+      <span class="doc-phase">${PHASES[d.phase]?.label.split(' ')[0]||'—'}</span>
+      <span class="doc-size">${fmtSize(d.size)}</span>
+      <button class="doc-del" onclick="deleteDoc('${d.id}')" title="Hapus">&#x2715;</button>
+    </div>`;
+  }).join('');
+}
+
+function deleteDoc(id) {
+  const docs = getDocs().filter(d=>String(d.id)!==String(id));
+  saveDocs(docs); renderDocs();
+}
+
+function onDrag(e, over) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.toggle('drag', over);
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+}
+
+/* seed demo docs */
+(function seedDocs() {
+  if (getDocs().length > 0) return;
+  const demo = [
+    { id:1, name:'Basic_Design_Item_list_Ship_production.xlsx', size:48200, ext:'xlsx', phase:'concept',     addedBy:'Ahmad Taufik', time:'2 hari lalu' },
+    { id:2, name:'Product-Oriented_Design_Process.pdf',          size:161524,ext:'pdf',  phase:'contract',    addedBy:'Sari Dewi',    time:'2 hari lalu' },
+    { id:3, name:'Lines_Plan_Rev2.dwg',                           size:2340000,ext:'dwg', phase:'functional', addedBy:'Budi Santoso', time:'1 hari lalu' },
+  ];
+  saveDocs(demo); 
+})();
+
+/* init */
+renderStats();
+renderPhaseBars();
+renderBarChart();
+renderCatGrid();
+renderApprBars();
+renderActivity();
+renderDocs();
 </script>
 </body>
 </html>

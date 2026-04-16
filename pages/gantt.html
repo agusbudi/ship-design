@@ -1,63 +1,62 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Gantt Chart — ShipDesign</title>
   <link rel="stylesheet" href="../css/style.css">
   <style>
-    .gantt-outer { padding: 16px 20px 32px; overflow-x: auto; }
-    .gantt-grid  {
-      min-width: 760px; border: 0.5px solid var(--border-light);
-      border-radius: var(--radius-lg); overflow: hidden;
-      background: var(--bg-primary);
-    }
-    .gantt-head {
-      display: grid; grid-template-columns: 260px 1fr;
-      border-bottom: 0.5px solid var(--border-light);
-      background: var(--bg-secondary); position: sticky; top: 0; z-index: 5;
-    }
-    .gh-left {
-      padding: 8px 14px; font-size: 11px; font-weight: 500;
-      color: var(--text-secondary); border-right: 0.5px solid var(--border-light);
-    }
-    .gh-right { display: flex; }
-    .month-cell {
-      flex: 1; text-align: center; font-size: 11px; font-weight: 500;
-      color: var(--text-secondary); padding: 8px 4px;
-      border-right: 0.5px solid var(--border-light);
-    }
-    .month-cell:last-child { border-right: none; }
+    .gantt-outer { padding:16px 24px 32px; overflow-x:auto; }
+    .gantt-grid  { min-width:780px; border:0.5px solid var(--border-light); border-radius:var(--radius-lg); overflow:hidden; background:var(--bg-primary); }
 
-    .gantt-row {
-      display: grid; grid-template-columns: 260px 1fr;
-      border-bottom: 0.5px solid var(--border-light); min-height: 36px;
-    }
-    .gantt-row:last-child { border-bottom: none; }
-    .gantt-row.group-row  { background: var(--bg-secondary); }
-    .gantt-row:hover .gl  { background: var(--bg-secondary); }
+    .gantt-head { display:grid; grid-template-columns:270px 1fr; border-bottom:0.5px solid var(--border-light); background:var(--bg-secondary); position:sticky; top:0; z-index:5; }
+    .gh-left    { padding:9px 16px; font-size:13px; font-weight:500; color:var(--text-secondary); border-right:0.5px solid var(--border-light); }
+    .gh-right   { display:flex; }
+    .month-cell { flex:1; text-align:center; font-size:12px; font-weight:500; color:var(--text-secondary); padding:9px 4px; border-right:0.5px solid var(--border-light); }
+    .month-cell:last-child { border-right:none; }
 
-    .gl {
-      padding: 6px 14px; font-size: 12px; color: var(--text-secondary);
-      border-right: 0.5px solid var(--border-light);
-      display: flex; align-items: center; gap: 8px;
-    }
-    .gl.group { font-weight: 500; font-size: 13px; color: var(--text-primary); }
-    .gl.sub   { padding-left: 28px; }
+    .gantt-row     { display:grid; grid-template-columns:270px 1fr; border-bottom:0.5px solid var(--border-light); min-height:40px; }
+    .gantt-row:last-child { border-bottom:none; }
+    .gantt-row.group-row  { background:var(--bg-secondary); }
+    .gantt-row:not(.group-row):hover .gl { background:var(--bg-secondary); }
 
-    .gr { position: relative; display: flex; align-items: center; }
-    .bar {
-      position: absolute; height: 14px;
-      border-radius: 3px; top: 50%; transform: translateY(-50%);
-    }
-    .bar-group { height: 20px; border-radius: 4px; }
+    .gl       { padding:7px 16px; font-size:13px; color:var(--text-secondary); border-right:0.5px solid var(--border-light); display:flex; align-items:center; gap:9px; }
+    .gl.group { font-weight:500; font-size:14px; color:var(--text-primary); }
+    .gl.sub   { padding-left:30px; cursor:pointer; }
+    .gl.sub:hover { color:var(--blue-600); }
+    .gr { position:relative; display:flex; align-items:center; }
+    .bar { position:absolute; height:14px; border-radius:3px; top:50%; transform:translateY(-50%); transition:opacity .12s; }
+    .bar:hover { opacity:.85 !important; }
+    .bar.group-bar { height:22px; border-radius:4px; cursor:default; }
+    .bar.sub-bar   { cursor:pointer; }
 
-    .legend {
-      display: flex; gap: 16px; flex-wrap: wrap;
-      padding: 12px 20px; font-size: 12px; color: var(--text-secondary);
-    }
-    .legend-item { display: flex; align-items: center; gap: 6px; }
-    .legend-dot  { width: 10px; height: 10px; border-radius: 3px; }
+    /* detail drawer */
+    .drawer { display:none; position:fixed; top:0; right:0; width:380px; height:100vh; background:var(--bg-primary); border-left:0.5px solid var(--border-light); z-index:300; overflow-y:auto; }
+    .drawer.open { display:block; }
+    .drawer-inner { padding:24px; }
+    .dr-close { float:right; background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-tertiary); }
+    .dr-breadcrumb { font-size:12px; color:var(--text-tertiary); margin-bottom:6px; clear:both; }
+    .dr-title  { font-size:16px; font-weight:500; line-height:1.4; margin-bottom:14px; }
+    .dr-row    { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:0.5px solid var(--border-light); font-size:13px; }
+    .dr-row:last-of-type { border-bottom:none; }
+    .dr-key    { color:var(--text-secondary); }
+    .dr-sec    { font-size:13px; font-weight:500; color:var(--text-secondary); margin:16px 0 8px; }
+    .st-grid   { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; }
+    .st-btn    { font-size:12px; padding:6px 8px; border-radius:var(--radius-md); border:0.5px solid var(--border-mid); cursor:pointer; text-align:center; background:var(--bg-primary); color:var(--text-secondary); font-family:var(--font); }
+    .st-btn:hover  { border-color:#185FA5; color:#185FA5; }
+    .st-btn.active { background:#185FA5; color:#fff; border-color:#185FA5; }
+    .st-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .drawer-overlay { display:none; position:fixed; inset:0; z-index:299; }
+    .drawer-overlay.open { display:block; }
+
+    .legend { display:flex; gap:16px; flex-wrap:wrap; padding:10px 24px 4px; font-size:13px; color:var(--text-secondary); }
+    .legend-item { display:flex; align-items:center; gap:6px; }
+    .legend-dot  { width:11px; height:11px; border-radius:3px; }
+
+    /* upload in drawer */
+    .mini-upload { border:1.5px dashed var(--border-mid); border-radius:var(--radius-md); padding:12px; text-align:center; cursor:pointer; margin-bottom:8px; }
+    .mini-upload:hover { background:var(--blue-50); border-color:#185FA5; }
+    .mini-upload p { font-size:12px; color:var(--text-secondary); }
+    .mini-doc { display:flex; align-items:center; gap:8px; padding:6px 9px; background:var(--bg-secondary); border-radius:var(--radius-md); margin-bottom:5px; font-size:12px; }
   </style>
 </head>
 <body>
@@ -79,87 +78,104 @@
 </div>
 
 <div class="legend">
-  <span style="font-size:12px;color:var(--text-tertiary);margin-right:4px">Legenda:</span>
+  <span style="font-size:13px;color:var(--text-tertiary);margin-right:4px">Legenda:</span>
   <span class="legend-item"><span class="legend-dot" style="background:#185FA5"></span>Concept</span>
   <span class="legend-item"><span class="legend-dot" style="background:#1D9E75"></span>Preliminary</span>
   <span class="legend-item"><span class="legend-dot" style="background:#D85A30"></span>Contract</span>
   <span class="legend-item"><span class="legend-dot" style="background:#7F77DD"></span>Functional</span>
+  <span style="margin-left:auto;font-size:12px;color:var(--text-tertiary)">Klik baris / bar untuk detail</span>
 </div>
 
-<div class="gantt-outer">
-  <div class="gantt-grid" id="gantt-grid"></div>
+<div class="gantt-outer"><div class="gantt-grid" id="gantt-grid"></div></div>
+
+<!-- detail drawer -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-inner" id="drawer-inner"></div>
 </div>
 
 <script>
 document.write(closeShell());
 
-const TOTAL_MONTHS = 12;
-const GANTT_DATA = [
-  { phase: 'concept', label: 'Concept design', startM: 0, durM: 2, color: '#185FA5', subs: [
-    { label: 'Performance specification', startM: 0, durM: 1.5 },
-    { label: 'Body plan & appendage sketch', startM: 0.2, durM: 1 },
-    { label: 'Concept GA drawings', startM: 0.5, durM: 1.5 },
-    { label: 'Weight estimate', startM: 0.8, durM: 0.8 },
-    { label: 'Cost estimate & risk assessment', startM: 1.2, durM: 0.8 },
-  ]},
-  { phase: 'preliminary', label: 'Preliminary design', startM: 1.5, durM: 3.5, color: '#1D9E75', subs: [
-    { label: 'Lines drawing', startM: 1.5, durM: 1.5 },
-    { label: 'Stability analysis', startM: 2, durM: 2 },
-    { label: 'HVAC load analysis', startM: 2.5, durM: 1.5 },
-    { label: 'Weight report', startM: 2.2, durM: 1.2 },
-    { label: 'Model test plan', startM: 3.5, durM: 1 },
-    { label: 'Build strategy & production plan', startM: 4, durM: 1 },
-  ]},
-  { phase: 'contract', label: 'Contract design', startM: 4.5, durM: 4, color: '#D85A30', subs: [
-    { label: 'Ship specification', startM: 4.5, durM: 2 },
-    { label: 'Lines plan & steel scantlings', startM: 5, durM: 2.5 },
-    { label: 'Piping systems analysis', startM: 5.5, durM: 2 },
-    { label: 'MEL final', startM: 7, durM: 1 },
-    { label: 'Trim & stability booklet', startM: 7.5, durM: 1 },
-    { label: 'Safety analysis', startM: 7, durM: 1.5 },
-  ]},
-  { phase: 'functional', label: 'Functional design', startM: 7.5, durM: 4.5, color: '#7F77DD', subs: [
-    { label: 'Hull drawings package', startM: 7.5, durM: 3 },
-    { label: 'Machinery arrangement', startM: 8, durM: 2.5 },
-    { label: 'Electrical one-line & diagrams', startM: 8.5, durM: 2 },
-    { label: 'HVAC diagrams', startM: 9, durM: 2 },
-    { label: 'Block outfitting schedule', startM: 10, durM: 1.5 },
-    { label: 'AMO lists & PTS', startM: 11, durM: 1 },
-  ]},
-];
+const tasks = getTasks();
+const ME = getCurrentUser(); const MR = ROLES[ME.role];
 
+const TOTAL_MONTHS = 12;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function pct(v) { return (v / TOTAL_MONTHS * 100).toFixed(2) + '%'; }
+const GANTT_DATA = [
+  { phase:'concept', label:'Concept design', startM:0, durM:2, color:'#185FA5',
+    subs:[
+      { label:'Performance specification (initial draft)', startM:0,   durM:1.5, taskMatch:'Performance specification (initial draft)' },
+      { label:'Body plan and appendage sketch',            startM:0.2, durM:1,   taskMatch:'Body plan and appendage sketch' },
+      { label:'Concept GA drawings',                       startM:0.5, durM:1.5, taskMatch:'Concept GA drawings' },
+      { label:'Weight estimate',                           startM:0.8, durM:0.8, taskMatch:'Weight estimate' },
+      { label:'Cost estimate & risk assessment',           startM:1.2, durM:0.8, taskMatch:'Cost estimate' },
+    ]},
+  { phase:'preliminary', label:'Preliminary design', startM:1.5, durM:3.5, color:'#1D9E75',
+    subs:[
+      { label:'Lines drawing and appendage sketch', startM:1.5, durM:1.5, taskMatch:'Lines drawing and appendage sketch' },
+      { label:'Stability analysis',                 startM:2,   durM:2,   taskMatch:'Stability analysis (intact & damaged)' },
+      { label:'HVAC load analysis',                 startM:2.5, durM:1.5, taskMatch:'HVAC load analysis' },
+      { label:'Weight report',                      startM:2.2, durM:1.2, taskMatch:'Weight report (3-digit level)' },
+      { label:'Model test plan',                    startM:3.5, durM:1,   taskMatch:'Model test plan' },
+      { label:'Build strategy & production plan',   startM:4,   durM:1,   taskMatch:'Build strategy (draft)' },
+    ]},
+  { phase:'contract', label:'Contract design', startM:4.5, durM:4, color:'#D85A30',
+    subs:[
+      { label:'Ship specification',          startM:4.5, durM:2,   taskMatch:'Ship specification' },
+      { label:'Lines plan & steel scantlings',startM:5,  durM:2.5, taskMatch:'Lines plan drawing' },
+      { label:'Piping systems analysis',     startM:5.5, durM:2,   taskMatch:'Piping systems analysis' },
+      { label:'Master Equipment List',       startM:7,   durM:1,   taskMatch:'Master Equipment List' },
+      { label:'Trim & stability booklet',    startM:7.5, durM:1,   taskMatch:'Trim and stability booklet' },
+      { label:'Safety analysis',             startM:7,   durM:1.5, taskMatch:'Safety analysis' },
+    ]},
+  { phase:'functional', label:'Functional design', startM:7.5, durM:4.5, color:'#7F77DD',
+    subs:[
+      { label:'Hull drawings package',            startM:7.5, durM:3,   taskMatch:'Lines plan drawing' },
+      { label:'Machinery arrangement',            startM:8,   durM:2.5, taskMatch:'Machinery arrangement' },
+      { label:'Electrical one-line & diagrams',   startM:8.5, durM:2,   taskMatch:'One-line diagram' },
+      { label:'HVAC diagrams',                    startM:9,   durM:2,   taskMatch:'HVAC diagram and equipment list' },
+      { label:'Block outfitting schedule',        startM:10,  durM:1.5, taskMatch:'Block outfitting and erection schedule' },
+      { label:'AMO lists & PTS',                  startM:11,  durM:1,   taskMatch:'Advance material ordering (AMO) list' },
+    ]},
+];
+
+function pct(v) { return (v/TOTAL_MONTHS*100).toFixed(2)+'%'; }
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+
+function findTask(phase, label) {
+  return tasks.find(t=>t.phase===phase&&t.label===label) ||
+         tasks.find(t=>t.phase===phase&&t.label.toLowerCase().includes(label.toLowerCase().substring(0,15)));
+}
 
 function render() {
   const filter = document.getElementById('zoom-sel').value;
-  const data = filter === 'all' ? GANTT_DATA : GANTT_DATA.filter(g => g.phase === filter);
-  const grid = document.getElementById('gantt-grid');
-
-  let html = `<div class="gantt-head">
-    <div class="gh-left">Deliverable</div>
-    <div class="gh-right">
-      ${MONTHS.map(m => `<div class="month-cell">${m}</div>`).join('')}
-    </div>
-  </div>`;
+  const data   = filter==='all' ? GANTT_DATA : GANTT_DATA.filter(g=>g.phase===filter);
+  const grid   = document.getElementById('gantt-grid');
+  let html = `<div class="gantt-head"><div class="gh-left">Deliverable</div><div class="gh-right">${MONTHS.map(m=>`<div class="month-cell">${m}</div>`).join('')}</div></div>`;
 
   data.forEach(g => {
     html += `<div class="gantt-row group-row">
-      <div class="gl group">
-        <span style="width:10px;height:10px;border-radius:3px;background:${g.color};flex-shrink:0"></span>
-        ${g.label}
-      </div>
+      <div class="gl group"><span style="width:11px;height:11px;border-radius:3px;background:${g.color};flex-shrink:0"></span>${g.label}</div>
       <div class="gr">
-        <div class="bar bar-group" style="left:${pct(g.startM)};width:${pct(g.durM)};background:${g.color};opacity:.15"></div>
-        <div class="bar bar-group" style="left:${pct(g.startM)};width:${pct(g.durM)};border:1.5px solid ${g.color};background:none"></div>
+        <div class="bar group-bar" style="left:${pct(g.startM)};width:${pct(g.durM)};background:${g.color};opacity:.15"></div>
+        <div class="bar group-bar" style="left:${pct(g.startM)};width:${pct(g.durM)};border:1.5px solid ${g.color};background:none"></div>
       </div>
     </div>`;
-    g.subs.forEach(s => {
-      html += `<div class="gantt-row">
-        <div class="gl sub">${s.label}</div>
+    g.subs.forEach((s,si) => {
+      const t = findTask(g.phase, s.taskMatch);
+      const tid = t ? t.id : null;
+      const statusDot = t ? ({'done':'#3B6D11','in-progress':'#185FA5','overdue':'#E24B4A','todo':'#888780'}[t.status]||'#888780') : '#888780';
+      html += `<div class="gantt-row" id="grow-${g.phase}-${si}">
+        <div class="gl sub" onclick="${tid!==null?`openDrawer(${tid})`:''}">
+          <span style="width:7px;height:7px;border-radius:50%;background:${statusDot};flex-shrink:0"></span>
+          ${s.label}
+        </div>
         <div class="gr">
-          <div class="bar" style="left:${pct(s.startM)};width:${pct(s.durM)};background:${g.color};opacity:.75"></div>
+          <div class="bar sub-bar" style="left:${pct(s.startM)};width:${pct(s.durM)};background:${g.color};opacity:.8"
+            ${tid!==null?`onclick="openDrawer(${tid})" title="Klik untuk detail"`:''}>
+          </div>
         </div>
       </div>`;
     });
@@ -167,6 +183,67 @@ function render() {
 
   grid.innerHTML = html;
 }
+
+function openDrawer(taskId) {
+  const t = tasks.find(t=>t.id==taskId); if(!t)return;
+  const ph=PHASES[t.phase]; const sc=STATUS_CFG[t.status]; const apSt=getApprovalStatus(t);
+  const docs=(getDocs()||[]).filter(d=>d.taskId==taskId);
+
+  document.getElementById('drawer-inner').innerHTML = `
+    <button class="dr-close" onclick="closeDrawer()">&#x2715;</button>
+    <div class="dr-breadcrumb">${ph.label} &rsaquo; ${cap(t.cat)}</div>
+    <div class="dr-title">${t.label}</div>
+
+    <div class="dr-row"><span class="dr-key">Status</span><span class="chip ${sc.chip}">${sc.label}</span></div>
+    <div class="dr-row"><span class="dr-key">Fase</span><span style="font-size:12px;padding:2px 7px;border-radius:8px;background:${ph.bg};color:${ph.tc};font-weight:500">${ph.label}</span></div>
+    <div class="dr-row"><span class="dr-key">Kategori</span><span>${cap(t.cat)}</span></div>
+    <div class="dr-row"><span class="dr-key">Approval</span><span class="chip appr-chip-${apSt.level}">${apSt.level}/4</span></div>
+
+    <div class="dr-sec">Ganti status</div>
+    <div class="st-grid">
+      ${Object.entries(STATUS_CFG).map(([s,c])=>
+        `<button class="st-btn${t.status===s?' active':''}${s==='done'&&MR.level<3?' disabled':''}"
+          ${s==='done'&&MR.level<3?'disabled':''} onclick="setStatus(${t.id},'${s}')">${c.label}</button>`
+      ).join('')}
+    </div>
+
+    <div class="dr-sec">Approval flow</div>
+    ${approvalTrackHtml(t)}
+    <div style="margin-top:10px">${approvalActionsHtml(t)}</div>
+
+    <div class="dr-sec">Dokumen terkait</div>
+    <div class="mini-upload" onclick="document.getElementById('g-file-${t.id}').click()">
+      <p>&#8679; Klik untuk unggah dokumen</p>
+    </div>
+    <input type="file" id="g-file-${t.id}" style="display:none" multiple onchange="uploadToTask(${t.id},this.files,'g-docs-${t.id}')">
+    <div id="g-docs-${t.id}">
+      ${renderDocList(t.id)}
+    </div>`;
+
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+function setStatus(id,status) {
+  const t=tasks.find(t=>t.id==id); if(!t)return;
+  if(status==='done'&&MR.level<3)return;
+  t.status=status; saveTasks(tasks); openDrawer(id); render();
+}
+function handleApprove(taskId) {
+  const note=(document.getElementById('appr-note-'+taskId)||{}).value||'';
+  if(doApprove(tasks,taskId,note)){ openDrawer(taskId); render(); }
+}
+function handleReject(taskId) {
+  if(!confirm('Reset semua approval?'))return;
+  const note=(document.getElementById('appr-note-'+taskId)||{}).value||'';
+  if(doReject(tasks,taskId,note)){ openDrawer(taskId); render(); }
+}
+
+
 
 render();
 </script>

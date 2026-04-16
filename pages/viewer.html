@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Document Viewer — ShipDesign</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+/* ── layout ─────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+.vapp{display:flex;flex-direction:column;height:100vh;background:var(--bg-tertiary);font-family:var(--font)}
+
+/* topbar */
+.vtop{height:52px;background:var(--bg-primary);border-bottom:.5px solid var(--border-light);display:flex;align-items:center;gap:10px;padding:0 18px;flex-shrink:0}
+.vback{background:none;border:.5px solid var(--border-mid);border-radius:var(--radius-md);padding:5px 12px;font-size:13px;cursor:pointer;color:var(--text-primary);font-family:var(--font)}
+.vback:hover{background:var(--bg-secondary)}
+.vdoc-name{font-size:15px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vtoolbar{display:flex;gap:6px;align-items:center}
+.vtbtn{background:none;border:.5px solid var(--border-mid);border-radius:var(--radius-md);padding:5px 11px;font-size:12px;cursor:pointer;color:var(--text-secondary);font-family:var(--font);display:flex;align-items:center;gap:5px}
+.vtbtn:hover{background:var(--bg-secondary);color:var(--text-primary)}
+.vtbtn.active{background:#185FA5;color:#fff;border-color:#185FA5}
+.vsep{width:1px;height:20px;background:var(--border-light)}
+
+/* main split */
+.vmain{display:flex;flex:1;overflow:hidden}
+
+/* ── LEFT: document canvas ───────────────────────────────── */
+.vcanvas-wrap{flex:1;overflow:auto;display:flex;flex-direction:column;align-items:center;padding:24px;gap:0;position:relative;background:#e0ddd8}
+.vcanvas-wrap.crosshair{cursor:crosshair}
+
+/* PDF page container */
+.page-wrap{position:relative;box-shadow:0 2px 16px rgba(0,0,0,.18);margin-bottom:16px;background:#fff;display:inline-block}
+.page-wrap canvas{display:block}
+
+/* annotation pin */
+.ann-pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer;z-index:20;transition:transform .1s}
+.ann-pin:hover{transform:translate(-50%,-100%) scale(1.2)}
+.ann-pin svg{filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+.ann-pin.resolved svg circle{fill:#3B6D11}
+.ann-pin.resolved svg path{stroke:#fff}
+
+/* annotation tooltip */
+.ann-tooltip{position:absolute;background:var(--bg-primary);border:.5px solid var(--border-mid);border-radius:var(--radius-lg);padding:10px 12px;width:240px;z-index:30;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.ann-tooltip .at-arrow{position:absolute;bottom:-7px;left:20px;width:13px;height:7px;overflow:hidden}
+.ann-tooltip .at-arrow::after{content:'';position:absolute;top:-7px;left:1px;width:10px;height:10px;background:var(--bg-primary);border:.5px solid var(--border-mid);transform:rotate(45deg)}
+
+/* image canvas */
+.img-canvas-wrap{position:relative;display:inline-block;box-shadow:0 2px 16px rgba(0,0,0,.18);margin:auto}
+#draw-canvas{display:block;border-radius:4px}
+#draw-canvas.drawing{cursor:crosshair}
+
+/* ── RIGHT: comments panel ───────────────────────────────── */
+.vpanel{width:320px;flex-shrink:0;background:var(--bg-primary);border-left:.5px solid var(--border-light);display:flex;flex-direction:column;overflow:hidden}
+.vpanel-head{padding:14px 16px 10px;border-bottom:.5px solid var(--border-light);flex-shrink:0}
+.vpanel-title{font-size:15px;font-weight:500;margin-bottom:10px}
+.vfilter{display:flex;gap:6px}
+.vfbtn{font-size:12px;padding:4px 10px;border-radius:8px;border:.5px solid var(--border-mid);background:none;cursor:pointer;color:var(--text-secondary);font-family:var(--font)}
+.vfbtn.active{background:var(--bg-secondary);color:var(--text-primary);font-weight:500}
+.vpanel-body{flex:1;overflow-y:auto;padding:10px 14px}
+
+/* comment thread */
+.cthread{border:.5px solid var(--border-light);border-radius:var(--radius-lg);margin-bottom:10px;overflow:hidden;transition:opacity .15s}
+.cthread.resolved{opacity:.65}
+.cthread-head{display:flex;align-items:flex-start;gap:9px;padding:10px 12px 8px;cursor:pointer}
+.cthread-head:hover{background:var(--bg-secondary)}
+.ct-meta{flex:1;min-width:0}
+.ct-author{font-size:13px;font-weight:500;margin-bottom:1px}
+.ct-time{font-size:11px;color:var(--text-tertiary)}
+.ct-preview{font-size:12px;color:var(--text-secondary);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ct-badges{display:flex;gap:5px;align-items:center;margin-top:4px;flex-wrap:wrap}
+.ct-page{font-size:10px;padding:1px 6px;border-radius:6px;background:var(--blue-50);color:var(--blue-800)}
+.ct-resolved{font-size:10px;padding:1px 6px;border-radius:6px;background:#EAF3DE;color:#3B6D11;font-weight:500}
+.ct-open{font-size:10px;padding:1px 6px;border-radius:6px;background:#FAEEDA;color:#633806;font-weight:500}
+.ct-count{font-size:10px;color:var(--text-tertiary);margin-left:auto;flex-shrink:0}
+
+.cthread-body{display:none;border-top:.5px solid var(--border-light)}
+.cthread-body.open{display:block}
+.creply{padding:8px 12px;border-bottom:.5px solid var(--border-light);display:flex;gap:8px}
+.creply:last-of-type{border-bottom:none}
+.cr-right{flex:1;min-width:0}
+.cr-header{display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.cr-author{font-size:12px;font-weight:500}
+.cr-time{font-size:10px;color:var(--text-tertiary)}
+.cr-text{font-size:12px;color:var(--text-primary);line-height:1.5}
+.cr-edit-input{width:100%;font-size:12px;padding:5px 8px;border-radius:var(--radius-md);border:.5px solid var(--border-mid);background:var(--bg-primary);color:var(--text-primary);font-family:var(--font);resize:none;line-height:1.5}
+.cr-edit-input:focus{outline:none;border-color:#185FA5}
+.cr-acts{display:flex;gap:10px;margin-top:4px}
+.cr-act{font-size:11px;color:var(--text-tertiary);background:none;border:none;cursor:pointer;padding:0;font-family:var(--font)}
+.cr-act:hover{color:#185FA5}
+.cr-act.danger:hover{color:#E24B4A}
+
+.cthread-footer{padding:8px 12px;border-top:.5px solid var(--border-light);display:flex;flex-direction:column;gap:6px;background:var(--bg-secondary)}
+.cf-input{font-size:12px;padding:6px 9px;border-radius:var(--radius-md);border:.5px solid var(--border-mid);background:var(--bg-primary);color:var(--text-primary);font-family:var(--font);resize:none;width:100%;line-height:1.5}
+.cf-input:focus{outline:none;border-color:#185FA5}
+.cf-btns{display:flex;gap:6px;justify-content:space-between;align-items:center}
+.cf-resolve{font-size:11px;padding:4px 9px;border-radius:var(--radius-md);border:.5px solid #3B6D11;background:none;color:#3B6D11;cursor:pointer;font-family:var(--font)}
+.cf-resolve:hover{background:#EAF3DE}
+.cf-reopen{font-size:11px;padding:4px 9px;border-radius:var(--radius-md);border:.5px solid var(--border-mid);background:none;color:var(--text-secondary);cursor:pointer;font-family:var(--font)}
+.cf-reopen:hover{background:var(--bg-secondary)}
+.cf-send{font-size:12px;padding:5px 12px;border-radius:var(--radius-md);background:#185FA5;color:#fff;border:none;cursor:pointer;font-family:var(--font)}
+.cf-send:hover{background:#0C447C}
+
+/* new comment input at bottom */
+.vpanel-new{padding:12px 14px;border-top:.5px solid var(--border-light);flex-shrink:0;background:var(--bg-secondary)}
+.vn-hint{font-size:12px;color:var(--text-tertiary);margin-bottom:8px}
+.vn-input{width:100%;font-size:13px;padding:8px 10px;border-radius:var(--radius-md);border:.5px solid var(--border-mid);background:var(--bg-primary);color:var(--text-primary);font-family:var(--font);resize:none;line-height:1.5;min-height:60px}
+.vn-input:focus{outline:none;border-color:#185FA5}
+.vn-btns{display:flex;justify-content:flex-end;gap:7px;margin-top:7px}
+
+/* draw toolbar */
+.draw-bar{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:var(--bg-primary);border:.5px solid var(--border-mid);border-radius:var(--radius-lg);padding:6px 10px;display:flex;gap:8px;align-items:center;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+.db-btn{width:30px;height:30px;border-radius:var(--radius-md);border:.5px solid var(--border-mid);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px}
+.db-btn:hover{background:var(--bg-secondary)}
+.db-btn.active{background:#185FA5;border-color:#185FA5}
+.db-color{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;flex-shrink:0}
+.db-color.sel{border-color:var(--text-primary)}
+.db-sep{width:1px;height:20px;background:var(--border-light)}
+.db-size{width:70px;accent-color:#185FA5}
+.db-label{font-size:11px;color:var(--text-tertiary)}
+
+/* annotation form popup */
+.ann-form{position:absolute;z-index:40;background:var(--bg-primary);border:.5px solid var(--border-mid);border-radius:var(--radius-lg);padding:12px;width:220px;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.ann-form textarea{width:100%;font-size:12px;padding:6px 8px;border-radius:var(--radius-md);border:.5px solid var(--border-mid);background:var(--bg-primary);color:var(--text-primary);font-family:var(--font);resize:none;min-height:56px;line-height:1.5}
+.ann-form textarea:focus{outline:none;border-color:#185FA5}
+.ann-form-btns{display:flex;gap:6px;justify-content:flex-end;margin-top:7px}
+
+/* upload prompt */
+.upload-prompt{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;padding:40px}
+.upload-box{border:2px dashed var(--border-mid);border-radius:var(--radius-xl);padding:40px 48px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;max-width:420px;width:100%}
+.upload-box:hover,.upload-box.drag{background:var(--blue-50);border-color:#185FA5}
+.upload-box h3{font-size:17px;font-weight:500;margin-bottom:6px}
+.upload-box p{font-size:13px;color:var(--text-secondary)}
+.upload-box .ub-icon{font-size:40px;margin-bottom:14px}
+
+/* av */
+.av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0}
+
+/* empty */
+.empty-state{text-align:center;padding:24px 16px;color:var(--text-tertiary);font-size:13px}
+
+/* scrollbar thin */
+.vpanel-body::-webkit-scrollbar,.vcanvas-wrap::-webkit-scrollbar{width:5px}
+.vpanel-body::-webkit-scrollbar-thumb,.vcanvas-wrap::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="vapp">
+
+<!-- topbar -->
+<div class="vtop">
+  <button class="vback" onclick="goBack()">&#8592; Kembali</button>
+  <span id="vdoc-name" class="vdoc-name">—</span>
+  <div class="vtoolbar" id="vtoolbar"></div>
+</div>
+
+<!-- main -->
+<div class="vmain">
+
+  <!-- canvas area -->
+  <div class="vcanvas-wrap" id="vcanvas-wrap">
+    <!-- content injected here -->
+  </div>
+
+  <!-- comments panel -->
+  <div class="vpanel">
+    <div class="vpanel-head">
+      <div class="vpanel-title">Catatan &amp; Anotasi</div>
+      <div class="vfilter">
+        <button class="vfbtn active" id="f-all"   onclick="setFilter('all')">Semua</button>
+        <button class="vfbtn"        id="f-open"  onclick="setFilter('open')">Open</button>
+        <button class="vfbtn"        id="f-closed" onclick="setFilter('closed')">Closed</button>
+      </div>
+    </div>
+    <div class="vpanel-body" id="panel-body"></div>
+    <div class="vpanel-new" id="vpanel-new" style="display:none">
+      <div class="vn-hint" id="vn-hint">Klik area dokumen untuk menambah anotasi</div>
+      <textarea class="vn-input" id="vn-text" placeholder="Atau tulis catatan umum di sini…" rows="3"></textarea>
+      <div class="vn-btns">
+        <button class="btn" onclick="cancelGeneral()">Batal</button>
+        <button class="btn btn-blue" onclick="postGeneral()">Kirim catatan</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ================================================================
+   STATE
+   ================================================================ */
+const ME = (function(){ try{const u=sessionStorage.getItem('sd_user');return u?JSON.parse(u):{id:'user_1',name:'Ahmad Taufik',initials:'AT',role:'engineer'};}catch(e){return{id:'user_1',name:'Ahmad Taufik',initials:'AT',role:'engineer'};} })();
+const ROLE_COLORS={'engineer':'#B5D4F4','supervisor':'#C0DD97','manager':'#FAC775','owner':'#CECBF6'};
+const ROLE_TC    ={'engineer':'#0C447C','supervisor':'#27500A','manager':'#633806','owner':'#3C3489'};
+const ME_COL = ROLE_COLORS[ME.role]||'#B5D4F4';
+const ME_TC  = ROLE_TC[ME.role]  ||'#0C447C';
+
+/* params from URL */
+const params   = new URLSearchParams(location.search);
+const DOC_ID   = params.get('docId');
+const TASK_ID  = params.get('taskId');
+const DOC_TYPE = params.get('type'); // 'pdf' | 'image'
+const RETURN   = params.get('return')||'../pages/kanban.html';
+
+/* annotations store */
+function getAnns(){ try{const s=sessionStorage.getItem('sd_anns_'+DOC_ID);return s?JSON.parse(s):[]}catch(e){return[]} }
+function saveAnns(a){ try{sessionStorage.setItem('sd_anns_'+DOC_ID,JSON.stringify(a))}catch(e){} }
+
+/* docs store */
+function getDocs(){ try{const s=sessionStorage.getItem('sd_docs');return s?JSON.parse(s):[]}catch(e){return[]} }
+function getDoc(id){ return getDocs().find(d=>String(d.id)===String(id)) }
+
+let currentFilter='all';
+let pendingAnn=null;   // {x, y, pageIdx} waiting for user text
+let isAnnotateMode=false;
+let docFile=null;      // File object or stored data-URL
+let docType=null;      // 'pdf'|'image'
+let pdfDoc=null;       // PDF.js doc
+let totalPages=0;
+let isDrawing=false;
+let drawColor='#E24B4A';
+let drawSize=3;
+let drawHistory=[];    // per-page strokes
+let currentPageIdx=0;
+
+const now=()=>new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+', '+new Date().toLocaleDateString('id-ID',{day:'numeric',month:'short'});
+const esc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const uid=()=>Date.now()+Math.random();
+
+/* ================================================================
+   INIT
+   ================================================================ */
+window.addEventListener('load', ()=>{
+  const doc = getDoc(DOC_ID);
+  if(!doc){ showUploadPrompt(); return; }
+  document.getElementById('vdoc-name').textContent = doc.name;
+  docType = doc.ext==='pdf'?'pdf':['png','jpg','jpeg','gif','webp','bmp'].includes(doc.ext)?'image':'other';
+
+  if(doc.dataUrl){
+    docFile = doc.dataUrl;
+    if(docType==='pdf') initPDF(doc.dataUrl);
+    else if(docType==='image') initImage(doc.dataUrl);
+    else showUnsupported();
+  } else {
+    showUploadPrompt(doc.name, docType);
+  }
+  renderComments();
+  document.getElementById('vpanel-new').style.display='flex';
+  document.getElementById('vpanel-new').style.flexDirection='column';
+});
+
+function goBack(){
+  history.back() || (location.href=RETURN);
+}
+
+/* ================================================================
+   UPLOAD PROMPT (when dataUrl not stored)
+   ================================================================ */
+function showUploadPrompt(name, type){
+  const wrap = document.getElementById('vcanvas-wrap');
+  wrap.innerHTML = `
+    <div class="upload-prompt">
+      <div class="upload-box" id="drop-box"
+        onclick="document.getElementById('v-file').click()"
+        ondragover="ev.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="dropFile(event)">
+        <div class="ub-icon">${type==='pdf'?'📄':'🖼'}</div>
+        <h3>${name?'Unggah '+name:'Unggah dokumen'}</h3>
+        <p>${type==='pdf'?'File PDF':'File gambar (PNG, JPG, WEBP)'}<br>Klik atau seret ke sini</p>
+      </div>
+      <input type="file" id="v-file" style="display:none"
+        accept="${type==='pdf'?'.pdf':'image/*'}"
+        onchange="loadFile(this.files[0])">
+    </div>`;
+}
+
+function dropFile(ev){
+  ev.preventDefault();
+  document.getElementById('drop-box')?.classList.remove('drag');
+  const f=ev.dataTransfer.files[0]; if(f) loadFile(f);
+}
+
+function loadFile(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const dataUrl=e.target.result;
+    /* store dataUrl back into doc */
+    const docs=getDocs();
+    const idx=docs.findIndex(d=>String(d.id)===String(DOC_ID));
+    if(idx>=0){ docs[idx].dataUrl=dataUrl; docs[idx].name=file.name; }
+    else { docs.push({id:DOC_ID,name:file.name,size:file.size,ext:file.name.split('.').pop().toLowerCase(),dataUrl,taskId:TASK_ID,addedBy:ME.name,time:'Baru saja'}); }
+    try{sessionStorage.setItem('sd_docs',JSON.stringify(docs));}catch(e){}
+    document.getElementById('vdoc-name').textContent=file.name;
+    docFile=dataUrl;
+    const ext=file.name.split('.').pop().toLowerCase();
+    docType=ext==='pdf'?'pdf':['png','jpg','jpeg','gif','webp'].includes(ext)?'image':'other';
+    if(docType==='pdf') initPDF(dataUrl);
+    else if(docType==='image') initImage(dataUrl);
+    else showUnsupported();
+    document.getElementById('vpanel-new').style.display='flex';
+  };
+  reader.readAsDataURL(file);
+}
+function showUnsupported(){
+  document.getElementById('vcanvas-wrap').innerHTML='<div style="margin:auto;color:var(--text-tertiary);font-size:14px;padding:40px">Format file tidak didukung untuk preview.</div>';
+}
+
+/* ================================================================
+   PDF VIEWER (PDF.js via CDN)
+   ================================================================ */
+function initPDF(dataUrl){
+  const wrap=document.getElementById('vcanvas-wrap');
+  wrap.innerHTML='<div style="color:var(--text-tertiary);font-size:13px;padding:40px;margin:auto">Memuat PDF…</div>';
+  buildPDFToolbar();
+  /* load pdf.js */
+  if(window.pdfjsLib){ renderPDFFromUrl(dataUrl); return; }
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  s.onload=()=>{ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; renderPDFFromUrl(dataUrl); };
+  document.head.appendChild(s);
+}
+
+async function renderPDFFromUrl(dataUrl){
+  const wrap=document.getElementById('vcanvas-wrap');
+  wrap.innerHTML='';
+  try{
+    const bytes=atob(dataUrl.split(',')[1]);
+    const arr=new Uint8Array(bytes.length);
+    for(let i=0;i<bytes.length;i++) arr[i]=bytes.charCodeAt(i);
+    pdfDoc=await pdfjsLib.getDocument({data:arr}).promise;
+    totalPages=pdfDoc.numPages;
+    for(let p=1;p<=totalPages;p++) await renderPage(p, wrap);
+    attachPDFAnnotateMode();
+  }catch(e){
+    wrap.innerHTML=`<div style="margin:auto;color:#E24B4A;font-size:13px;padding:40px">Gagal memuat PDF: ${e.message}</div>`;
+  }
+}
+
+async function renderPage(pageNum, wrap){
+  const page=await pdfDoc.getPage(pageNum);
+  const scale=1.4;
+  const vp=page.getViewport({scale});
+  const pw=document.createElement('div');
+  pw.className='page-wrap';
+  pw.dataset.page=pageNum;
+  pw.style.cssText=`width:${vp.width}px;height:${vp.height}px`;
+  const canvas=document.createElement('canvas');
+  canvas.width=vp.width; canvas.height=vp.height;
+  pw.appendChild(canvas);
+  /* draw overlay canvas for annotations */
+  const overlay=document.createElement('canvas');
+  overlay.className='draw-overlay';
+  overlay.width=vp.width; overlay.height=vp.height;
+  overlay.style.cssText='position:absolute;top:0;left:0;pointer-events:none';
+  pw.appendChild(overlay);
+  wrap.appendChild(pw);
+  await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+  /* place existing annotation pins */
+  getAnns().filter(a=>a.pageIdx===pageNum).forEach(a=>placePin(a,pw));
+}
+
+function attachPDFAnnotateMode(){
+  document.querySelectorAll('.page-wrap').forEach(pw=>{
+    pw.addEventListener('click',e=>{
+      if(!isAnnotateMode) return;
+      if(e.target.closest('.ann-pin,.ann-tooltip,.ann-form')) return;
+      const rect=pw.getBoundingClientRect();
+      const xPct=((e.clientX-rect.left)/rect.width*100).toFixed(2);
+      const yPct=((e.clientY-rect.top)/rect.height*100).toFixed(2);
+      closeAllTooltips(); closePendingForm();
+      showAnnForm(pw, xPct, yPct, parseInt(pw.dataset.page));
+    });
+  });
+}
+
+/* ================================================================
+   IMAGE VIEWER + DRAW
+   ================================================================ */
+function initImage(dataUrl){
+  const wrap=document.getElementById('vcanvas-wrap');
+  wrap.innerHTML='';
+  buildImageToolbar();
+  const img=new Image();
+  img.onload=()=>{
+    const MAX=Math.min(900, wrap.clientWidth-48||900);
+    const scale=Math.min(1, MAX/img.width);
+    const W=Math.round(img.width*scale), H=Math.round(img.height*scale);
+    const imgWrap=document.createElement('div');
+    imgWrap.className='img-canvas-wrap';
+    imgWrap.style.cssText=`width:${W}px;height:${H}px`;
+    /* base canvas (image) */
+    const base=document.createElement('canvas');
+    base.id='base-canvas'; base.width=W; base.height=H;
+    base.style='position:absolute;top:0;left:0';
+    base.getContext('2d').drawImage(img,0,0,W,H);
+    /* draw canvas (strokes) */
+    const dc=document.createElement('canvas');
+    dc.id='draw-canvas'; dc.width=W; dc.height=H;
+    dc.style.cssText='position:absolute;top:0;left:0';
+    imgWrap.appendChild(base); imgWrap.appendChild(dc);
+    /* also annotation click layer */
+    const annLayer=document.createElement('div');
+    annLayer.id='ann-img-layer';
+    annLayer.style.cssText=`position:absolute;top:0;left:0;width:${W}px;height:${H}px;z-index:10`;
+    imgWrap.appendChild(annLayer);
+    /* pins */
+    getAnns().filter(a=>a.pageIdx===1).forEach(a=>placePin(a,imgWrap));
+    imgWrap.style.position='relative';
+    wrap.appendChild(imgWrap);
+    initDrawCanvas(dc, imgWrap);
+    attachImageAnnotateMode(imgWrap);
+    /* draw toolbar overlay */
+    const dbar=buildDrawBar();
+    wrap.appendChild(dbar);
+  };
+  img.src=dataUrl;
+}
+
+function initDrawCanvas(dc, container){
+  const ctx=dc.getContext('2d');
+  let drawing=false, lastX=0, lastY=0;
+  dc.addEventListener('mousedown',e=>{
+    if(isAnnotateMode) return;
+    drawing=true;
+    const r=dc.getBoundingClientRect();
+    lastX=e.clientX-r.left; lastY=e.clientY-r.top;
+    ctx.beginPath(); ctx.moveTo(lastX,lastY);
+    dc.style.cursor='crosshair';
+  });
+  dc.addEventListener('mousemove',e=>{
+    if(!drawing)return;
+    const r=dc.getBoundingClientRect();
+    const x=e.clientX-r.left, y=e.clientY-r.top;
+    ctx.lineWidth=drawSize; ctx.strokeStyle=drawColor;
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.lineTo(x,y); ctx.stroke();
+    lastX=x; lastY=y;
+  });
+  dc.addEventListener('mouseup',()=>{drawing=false; dc.style.cursor=isAnnotateMode?'crosshair':'';});
+  dc.addEventListener('mouseleave',()=>{drawing=false;});
+  /* touch */
+  dc.addEventListener('touchstart',e=>{
+    if(isAnnotateMode)return; e.preventDefault();
+    const r=dc.getBoundingClientRect(),t=e.touches[0];
+    drawing=true; lastX=t.clientX-r.left; lastY=t.clientY-r.top;
+    ctx.beginPath(); ctx.moveTo(lastX,lastY);
+  },{passive:false});
+  dc.addEventListener('touchmove',e=>{
+    if(!drawing)return; e.preventDefault();
+    const r=dc.getBoundingClientRect(),t=e.touches[0];
+    const x=t.clientX-r.left,y=t.clientY-r.top;
+    ctx.lineWidth=drawSize; ctx.strokeStyle=drawColor; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.lineTo(x,y); ctx.stroke(); lastX=x; lastY=y;
+  },{passive:false});
+  dc.addEventListener('touchend',()=>{drawing=false;});
+}
+
+function attachImageAnnotateMode(imgWrap){
+  imgWrap.addEventListener('click',e=>{
+    if(!isAnnotateMode)return;
+    if(e.target.closest('.ann-pin,.ann-tooltip,.ann-form'))return;
+    const r=imgWrap.getBoundingClientRect();
+    const xPct=((e.clientX-r.left)/r.width*100).toFixed(2);
+    const yPct=((e.clientY-r.top)/r.height*100).toFixed(2);
+    closeAllTooltips(); closePendingForm();
+    showAnnForm(imgWrap,xPct,yPct,1);
+  });
+}
+
+/* ================================================================
+   ANNOTATION PIN & FORM
+   ================================================================ */
+function placePin(ann, container){
+  const pin=document.createElement('div');
+  pin.className='ann-pin'+(ann.resolved?' resolved':'');
+  pin.id='pin-'+ann.id;
+  pin.style.cssText=`left:${ann.xPct}%;top:${ann.yPct}%;`;
+  pin.innerHTML=`<svg width="24" height="30" viewBox="0 0 24 30">
+    <circle cx="12" cy="12" r="11" fill="${ann.resolved?'#3B6D11':'#E24B4A'}"/>
+    <path d="M8 12l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" ${ann.resolved?'':'style="display:none"'}/>
+    <text x="12" y="16" text-anchor="middle" font-size="11" fill="#fff" font-weight="600" ${ann.resolved?'style="display:none"':''}>!</text>
+    <path d="M12 23L12 30" stroke="${ann.resolved?'#3B6D11':'#E24B4A'}" stroke-width="2"/>
+  </svg>`;
+  pin.addEventListener('click',e=>{ e.stopPropagation(); toggleTooltip(ann,pin,container); });
+  container.appendChild(pin);
+}
+
+function showAnnForm(container, xPct, yPct, pageIdx){
+  const form=document.createElement('div');
+  form.className='ann-form'; form.id='ann-form-pending';
+  form.style.cssText=`left:${xPct}%;top:${yPct}%;`;
+  form.innerHTML=`
+    <div style="font-size:12px;font-weight:500;margin-bottom:7px">Tambah anotasi</div>
+    <textarea id="ann-text-input" placeholder="Tulis catatan untuk area ini…" rows="3"></textarea>
+    <div class="ann-form-btns">
+      <button class="btn" onclick="closePendingForm()" style="font-size:12px;padding:4px 10px">Batal</button>
+      <button class="btn btn-blue" onclick="submitAnn('${xPct}','${yPct}',${pageIdx},this)" style="font-size:12px;padding:4px 10px">Tambah</button>
+    </div>`;
+  container.appendChild(form);
+  setTimeout(()=>document.getElementById('ann-text-input')?.focus(),50);
+}
+
+function submitAnn(xPct,yPct,pageIdx,btn){
+  const text=document.getElementById('ann-text-input')?.value?.trim();
+  if(!text) return;
+  const container=btn.closest('.page-wrap,.img-canvas-wrap');
+  const ann={
+    id:uid(), xPct:parseFloat(xPct), yPct:parseFloat(yPct), pageIdx,
+    author:ME.name, initials:ME.initials, col:ME_COL, tc:ME_TC,
+    time:now(), text, resolved:false,
+    replies:[]
+  };
+  const anns=getAnns(); anns.push(ann); saveAnns(anns);
+  closePendingForm();
+  placePin(ann,container);
+  renderComments();
+  /* scroll panel to new comment */
+  setTimeout(()=>{ const el=document.getElementById('ct-'+ann.id); if(el)el.scrollIntoView({behavior:'smooth'}); },100);
+}
+
+function closePendingForm(){
+  document.getElementById('ann-form-pending')?.remove();
+}
+
+function toggleTooltip(ann,pin,container){
+  const existing=document.getElementById('tooltip-'+ann.id);
+  closeAllTooltips();
+  if(existing) return;
+  const tip=document.createElement('div');
+  tip.className='ann-tooltip'; tip.id='tooltip-'+ann.id;
+  const replCount=ann.replies?.length||0;
+  tip.style.cssText=`left:${ann.xPct}%;top:calc(${ann.yPct}% - 8px);transform:translateY(-100%)`;
+  tip.innerHTML=`
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+      <div class="av" style="background:${ann.col};color:${ann.tc};width:22px;height:22px;font-size:9px">${ann.initials}</div>
+      <span style="font-size:12px;font-weight:500">${esc(ann.author)}</span>
+      <span style="font-size:10px;color:var(--text-tertiary);margin-left:auto">${ann.time}</span>
+    </div>
+    <div style="font-size:12px;line-height:1.5;margin-bottom:7px">${esc(ann.text)}</div>
+    <div style="display:flex;gap:7px;font-size:11px">
+      ${replCount?`<span style="color:var(--text-tertiary)">${replCount} balasan</span>`:''}
+      <button onclick="scrollToThread('${ann.id}')" style="font-size:11px;background:none;border:none;cursor:pointer;color:#185FA5;padding:0;font-family:var(--font)">Lihat diskusi &#8594;</button>
+      <button onclick="closeAllTooltips()" style="font-size:11px;background:none;border:none;cursor:pointer;color:var(--text-tertiary);padding:0;font-family:var(--font);margin-left:auto">&#x2715;</button>
+    </div>
+    <div class="at-arrow"><span></span></div>`;
+  container.appendChild(tip);
+  tip.addEventListener('click',e=>e.stopPropagation());
+}
+
+function closeAllTooltips(){ document.querySelectorAll('.ann-tooltip').forEach(t=>t.remove()); }
+
+function scrollToThread(annId){
+  closeAllTooltips();
+  setFilter('all');
+  setTimeout(()=>{
+    const el=document.getElementById('ct-'+annId);
+    if(el){ el.scrollIntoView({behavior:'smooth'}); el.style.outline='2px solid #185FA5'; setTimeout(()=>el.style.outline='',1200); }
+  },100);
+}
+
+/* ================================================================
+   COMMENTS PANEL
+   ================================================================ */
+function setFilter(f){
+  currentFilter=f;
+  ['all','open','closed'].forEach(x=>document.getElementById('f-'+x)?.classList.toggle('active',x===f));
+  renderComments();
+}
+
+function renderComments(){
+  const anns=getAnns();
+  const body=document.getElementById('panel-body');
+  let list=anns;
+  if(currentFilter==='open')   list=anns.filter(a=>!a.resolved);
+  if(currentFilter==='closed') list=anns.filter(a=>a.resolved);
+
+  if(!list.length){
+    body.innerHTML=`<div class="empty-state">${currentFilter==='all'?'Belum ada anotasi.<br>Aktifkan mode anotasi<br>lalu klik area dokumen.':currentFilter==='open'?'Tidak ada anotasi open.':'Tidak ada anotasi closed.'}</div>`;
+    return;
+  }
+
+  body.innerHTML=list.map(ann=>threadHtml(ann)).join('');
+}
+
+function threadHtml(ann){
+  const replies=ann.replies||[];
+  const repliesHtml=replies.map((r,ri)=>`
+    <div class="creply" id="reply-${ann.id}-${ri}">
+      <div class="av" style="background:${r.col};color:${r.tc};width:22px;height:22px;font-size:9px">${r.ini}</div>
+      <div class="cr-right">
+        <div class="cr-header">
+          <span class="cr-author">${esc(r.author)}</span>
+          <span class="cr-time">${r.time}</span>
+        </div>
+        <div class="cr-text" id="rt-${ann.id}-${ri}">${esc(r.text)}</div>
+        <div id="re-form-${ann.id}-${ri}" style="display:none">
+          <textarea class="cr-edit-input" id="re-inp-${ann.id}-${ri}" rows="2">${esc(r.text)}</textarea>
+          <div class="cr-acts"><button class="cr-act" onclick="saveReplyEdit('${ann.id}',${ri})">Simpan</button><button class="cr-act" onclick="cancelEdit('${ann.id}',${ri})">Batal</button></div>
+        </div>
+        <div class="cr-acts">
+          <button class="cr-act" onclick="editReply('${ann.id}',${ri})">Edit</button>
+          <button class="cr-act danger" onclick="deleteReply('${ann.id}',${ri})">Hapus</button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  return `<div class="cthread${ann.resolved?' resolved':''}" id="ct-${ann.id}">
+    <div class="cthread-head" onclick="toggleThread('${ann.id}')">
+      <div class="av" style="background:${ann.col};color:${ann.tc}">${ann.initials}</div>
+      <div class="ct-meta">
+        <div class="ct-author">${esc(ann.author)}</div>
+        <div class="ct-time">${ann.time}</div>
+        <div class="ct-preview">${esc(ann.text)}</div>
+        <div class="ct-badges">
+          <span class="ct-page">p.${ann.pageIdx}</span>
+          ${ann.resolved
+            ?`<span class="ct-resolved">&#10003; Closed</span>`
+            :`<span class="ct-open">Open</span>`}
+        </div>
+      </div>
+      ${replies.length?`<span class="ct-count">${replies.length} balasan</span>`:''}
+    </div>
+    <div class="cthread-body" id="cb-${ann.id}">
+      ${repliesHtml}
+      <div class="cthread-footer">
+        <textarea class="cf-input" id="cf-${ann.id}" placeholder="Tulis balasan…" rows="2"></textarea>
+        <div class="cf-btns">
+          ${ann.resolved
+            ?`<button class="cf-reopen" onclick="reopenThread('${ann.id}')">&#8635; Reopen</button>`
+            :`<button class="cf-resolve" onclick="resolveThread('${ann.id}')">&#10003; Close</button>`}
+          <button class="cf-send" onclick="postReply('${ann.id}')">Kirim</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleThread(id){
+  const el=document.getElementById('cb-'+id);
+  if(el) el.classList.toggle('open');
+}
+
+function postReply(annId){
+  const inp=document.getElementById('cf-'+annId); if(!inp)return;
+  const text=inp.value.trim(); if(!text)return;
+  const anns=getAnns();
+  const ann=anns.find(a=>String(a.id)===String(annId)); if(!ann)return;
+  if(!ann.replies)ann.replies=[];
+  ann.replies.push({author:ME.name,ini:ME.initials,col:ME_COL,tc:ME_TC,time:now(),text});
+  saveAnns(anns); inp.value=''; renderComments();
+  setTimeout(()=>{ const el=document.getElementById('cb-'+annId); if(el)el.classList.add('open'); },50);
+}
+
+function resolveThread(annId){
+  const anns=getAnns(); const ann=anns.find(a=>String(a.id)===String(annId)); if(!ann)return;
+  ann.resolved=true; saveAnns(anns);
+  /* update pin */
+  const pin=document.getElementById('pin-'+annId);
+  if(pin){ pin.classList.add('resolved'); pin.querySelector('circle')?.setAttribute('fill','#3B6D11'); }
+  renderComments();
+}
+
+function reopenThread(annId){
+  const anns=getAnns(); const ann=anns.find(a=>String(a.id)===String(annId)); if(!ann)return;
+  ann.resolved=false; saveAnns(anns);
+  const pin=document.getElementById('pin-'+annId);
+  if(pin){ pin.classList.remove('resolved'); pin.querySelector('circle')?.setAttribute('fill','#E24B4A'); }
+  renderComments();
+}
+
+function editReply(annId,ri){
+  document.getElementById('rt-'+annId+'-'+ri).style.display='none';
+  document.getElementById('re-form-'+annId+'-'+ri).style.display='block';
+  document.getElementById('re-inp-'+annId+'-'+ri)?.focus();
+}
+function cancelEdit(annId,ri){
+  document.getElementById('rt-'+annId+'-'+ri).style.display='';
+  document.getElementById('re-form-'+annId+'-'+ri).style.display='none';
+}
+function saveReplyEdit(annId,ri){
+  const inp=document.getElementById('re-inp-'+annId+'-'+ri); if(!inp)return;
+  const text=inp.value.trim(); if(!text)return;
+  const anns=getAnns(); const ann=anns.find(a=>String(a.id)===String(annId)); if(!ann||!ann.replies[ri])return;
+  ann.replies[ri].text=text; ann.replies[ri].edited=true; saveAnns(anns); renderComments();
+  setTimeout(()=>{ const el=document.getElementById('cb-'+annId); if(el)el.classList.add('open'); },50);
+}
+function deleteReply(annId,ri){
+  if(!confirm('Hapus balasan ini?'))return;
+  const anns=getAnns(); const ann=anns.find(a=>String(a.id)===String(annId)); if(!ann)return;
+  ann.replies.splice(ri,1); saveAnns(anns); renderComments();
+  setTimeout(()=>{ const el=document.getElementById('cb-'+annId); if(el)el.classList.add('open'); },50);
+}
+
+/* general comment (no position) */
+function postGeneral(){
+  const inp=document.getElementById('vn-text'); if(!inp)return;
+  const text=inp.value.trim(); if(!text)return;
+  const ann={id:uid(),xPct:2,yPct:2,pageIdx:1,author:ME.name,initials:ME.initials,
+    col:ME_COL,tc:ME_TC,time:now(),text,resolved:false,replies:[],general:true};
+  const anns=getAnns(); anns.push(ann); saveAnns(anns);
+  inp.value=''; renderComments();
+}
+function cancelGeneral(){ document.getElementById('vn-text').value=''; }
+
+/* ================================================================
+   TOOLBARS
+   ================================================================ */
+function buildPDFToolbar(){
+  const tb=document.getElementById('vtoolbar');
+  tb.innerHTML=`
+    <button class="vtbtn" id="btn-annotate" onclick="toggleAnnotate()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M8 8l4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Mode Anotasi
+    </button>
+    <div class="vsep"></div>
+    <button class="vtbtn" onclick="zoomPDF(-0.2)">&#8722;</button>
+    <span id="zoom-val" style="font-size:12px;color:var(--text-secondary);min-width:36px;text-align:center">100%</span>
+    <button class="vtbtn" onclick="zoomPDF(0.2)">&#43;</button>`;
+}
+
+let pdfScale=1.4;
+function zoomPDF(delta){
+  pdfScale=Math.max(0.6,Math.min(3,pdfScale+delta));
+  document.getElementById('zoom-val').textContent=Math.round(pdfScale/1.4*100)+'%';
+  renderPDFFromUrl(docFile);
+}
+
+function toggleAnnotate(){
+  isAnnotateMode=!isAnnotateMode;
+  document.getElementById('btn-annotate')?.classList.toggle('active',isAnnotateMode);
+  document.getElementById('vcanvas-wrap').classList.toggle('crosshair',isAnnotateMode);
+}
+
+function buildImageToolbar(){
+  const tb=document.getElementById('vtoolbar');
+  tb.innerHTML=`
+    <button class="vtbtn" id="btn-annotate-img" onclick="toggleAnnotate()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M8 8l4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Anotasi
+    </button>
+    <div class="vsep"></div>
+    <button class="vtbtn" onclick="saveDrawing()">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 10l3-3 2 2 4-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+      Simpan
+    </button>`;
+}
+
+function buildDrawBar(){
+  const bar=document.createElement('div');
+  bar.className='draw-bar';
+  bar.innerHTML=`
+    <span class="db-label">Warna:</span>
+    ${['#E24B4A','#185FA5','#1D9E75','#D85A30','#1a1a18'].map(c=>
+      `<div class="db-color${c===drawColor?' sel':''}" style="background:${c}" onclick="setDrawColor('${c}',this)"></div>`
+    ).join('')}
+    <div class="db-sep"></div>
+    <span class="db-label">Ukuran:</span>
+    <input type="range" class="db-size" min="1" max="12" value="${drawSize}" step="1" oninput="drawSize=+this.value">
+    <div class="db-sep"></div>
+    <button class="db-btn" onclick="clearDraw()" title="Hapus semua coretan">&#x2715;</button>
+    <button class="db-btn" onclick="undoDraw()" title="Undo">&#8617;</button>`;
+  return bar;
+}
+
+let drawSnapshot=null;
+function setDrawColor(c,el){
+  drawColor=c;
+  document.querySelectorAll('.db-color').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function clearDraw(){
+  const dc=document.getElementById('draw-canvas'); if(!dc)return;
+  dc.getContext('2d').clearRect(0,0,dc.width,dc.height);
+  drawHistory=[];
+}
+function undoDraw(){
+  const dc=document.getElementById('draw-canvas'); if(!dc)return;
+  drawHistory.pop();
+  const ctx=dc.getContext('2d');
+  ctx.clearRect(0,0,dc.width,dc.height);
+  drawHistory.forEach(snap=>ctx.putImageData(snap,0,0));
+}
+function saveDrawing(){
+  const base=document.getElementById('base-canvas');
+  const draw=document.getElementById('draw-canvas');
+  if(!base)return;
+  const merged=document.createElement('canvas');
+  merged.width=base.width; merged.height=base.height;
+  const ctx=merged.getContext('2d');
+  ctx.drawImage(base,0,0);
+  if(draw) ctx.drawImage(draw,0,0);
+  const url=merged.toDataURL('image/png');
+  const a=document.createElement('a');
+  a.href=url; a.download='markup_'+Date.now()+'.png'; a.click();
+  /* also store back */
+  const docs=getDocs();
+  const idx=docs.findIndex(d=>String(d.id)===String(DOC_ID));
+  if(idx>=0){ docs[idx].dataUrl=url; try{sessionStorage.setItem('sd_docs',JSON.stringify(docs));}catch(e){} }
+}
+</script>
+</body>
+</html>

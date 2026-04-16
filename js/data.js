@@ -339,3 +339,77 @@ function treeIcon()   { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="
 function ganttIcon()  { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="8" height="2.5" rx="1" fill="currentColor" opacity=".4"/><rect x="4" y="6.8" width="10" height="2.5" rx="1" fill="currentColor" opacity=".6"/><rect x="2" y="10.5" width="6" height="2.5" rx="1" fill="currentColor" opacity=".4"/></svg>`; }
 function kanbanIcon() { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6" y="2" width="4" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="2" width="4" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>`; }
 function dashIcon()   { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>`; }
+
+/* ================================================================
+   Document store — shared utilities
+   ================================================================ */
+function getDocs()  { try{const s=sessionStorage.getItem('sd_docs');return s?JSON.parse(s):[]}catch(e){return[]} }
+function saveDocs(d){ try{sessionStorage.setItem('sd_docs',JSON.stringify(d))}catch(e){} }
+function fmtSize(b) { if(b<1024)return b+'B';if(b<1048576)return Math.round(b/1024)+'KB';return(b/1048576).toFixed(1)+'MB'; }
+
+const DOC_ICONS  = {pdf:'📄',doc:'📝',docx:'📝',xls:'📊',xlsx:'📊',png:'🖼',jpg:'🖼',jpeg:'🖼',gif:'🖼',webp:'🖼',dwg:'📐',zip:'📦'};
+const DOC_BG     = {pdf:'#FAECE7',doc:'#E6F1FB',docx:'#E6F1FB',xls:'#EAF3DE',xlsx:'#EAF3DE',png:'#EEEDFE',jpg:'#EEEDFE',jpeg:'#EEEDFE',gif:'#EEEDFE',webp:'#EEEDFE',dwg:'#FAEEDA',zip:'#F1EFE8'};
+const VIEWABLE   = ['pdf','png','jpg','jpeg','gif','webp'];
+
+/* Render mini doc list for a task — with View button for supported types */
+function renderDocList(taskId) {
+  const docs = getDocs().filter(d=>String(d.taskId)===String(taskId));
+  if (!docs.length) return `<p style="font-size:12px;color:var(--text-tertiary)">Belum ada dokumen untuk item ini.</p>`;
+  return docs.map(d => {
+    const ext  = d.ext||'file';
+    const icon = DOC_ICONS[ext]||'📎';
+    const bg   = DOC_BG[ext]||'#F1EFE8';
+    const canView = VIEWABLE.includes(ext);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg-secondary);border-radius:var(--radius-md);margin-bottom:6px;font-size:12px">
+      <div style="width:28px;height:28px;border-radius:6px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.name}</div>
+        <div style="font-size:11px;color:var(--text-tertiary)">${fmtSize(d.size)} &middot; ${d.addedBy||'—'}</div>
+      </div>
+      ${canView ? `<button onclick="openViewer('${d.id}','${taskId}')" style="font-size:11px;padding:3px 9px;border-radius:var(--radius-md);border:.5px solid var(--blue-600);background:var(--blue-50);color:var(--blue-800);cursor:pointer;font-family:var(--font);flex-shrink:0">Buka &#8599;</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* Upload files to a task — reads as dataUrl for viewer support */
+function uploadToTask(taskId, files, containerId) {
+  const docs = getDocs();
+  const u    = getCurrentUser();
+  let count  = 0;
+  Array.from(files).forEach(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    const reader = new FileReader();
+    reader.onload = e => {
+      docs.push({
+        id: Date.now()+Math.random(), name:f.name, size:f.size, ext,
+        taskId, phase: '', addedBy:u.name, time:'Baru saja',
+        dataUrl: e.target.result
+      });
+      count++;
+      if (count === files.length) {
+        saveDocs(docs);
+        if (containerId) {
+          const el = document.getElementById(containerId);
+          if (el) el.innerHTML = renderDocList(taskId);
+        }
+      }
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+/* Navigate to viewer page */
+function openViewer(docId, taskId) {
+  const returnPage = location.href;
+  location.href = `viewer.html?docId=${docId}&taskId=${taskId}&return=${encodeURIComponent(returnPage)}`;
+}
+
+/* Seed demo docs with a viewable sample image if none exist yet */
+(function seedViewableDocs(){
+  const docs = getDocs();
+  if(docs.some(d=>d.dataUrl)) return; // already seeded
+  // tiny 1x1 white PNG as placeholder so demo "Buka" button works
+  const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  docs.forEach(d=>{ if(['png','jpg','jpeg','gif','webp'].includes(d.ext||'')) d.dataUrl=tinyPng; });
+  saveDocs(docs);
+})();
