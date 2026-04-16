@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShipDesign Scheduler</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .splash {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; gap: 20px; text-align: center;
+      padding: 2rem;
+    }
+    .splash-logo {
+      width: 64px; height: 64px; background: #185FA5;
+      border-radius: 16px; display: flex; align-items: center; justify-content: center;
+    }
+    .splash-logo svg { width: 38px; height: 38px; }
+    .splash h1 { font-size: 28px; font-weight: 500; margin-bottom: 4px; }
+    .splash p  { font-size: 14px; color: #5f5e5a; max-width: 400px; }
+    .splash-links {
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px;
+    }
+    .splash-links a {
+      padding: 8px 20px; border-radius: 8px; font-size: 13px; text-decoration: none;
+      border: 0.5px solid rgba(0,0,0,0.18); color: #1a1a18;
+      background: #ffffff;
+    }
+    .splash-links a:first-child { background: #185FA5; color: #fff; border-color: #185FA5; }
+    .splash-links a:hover { opacity: .85; }
+    .info-grid {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 200px));
+      gap: 10px; margin-top: 16px;
+    }
+    .info-card {
+      background: #fff; border: 0.5px solid rgba(0,0,0,0.1);
+      border-radius: 10px; padding: 14px 16px; text-align: left;
+    }
+    .info-card strong { display: block; font-size: 13px; margin-bottom: 3px; }
+    .info-card span   { font-size: 12px; color: #5f5e5a; }
+  </style>
+</head>
+<body>
+  <div class="splash">
+    <div class="splash-logo">
+      <svg viewBox="0 0 38 38" fill="none">
+        <path d="M19 4L4 12v14l15 8 15-8V12L19 4z" stroke="#fff" stroke-width="2.4"/>
+        <path d="M19 14v8M13.5 17l5.5 5 5.5-5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1>ShipDesign Scheduler</h1>
+    <p>Aplikasi manajemen penjadwalan desain kapal berbasis product-oriented design process — KRI Nusantara Basic Design.</p>
+    <div class="splash-links">
+      <a href="pages/tree.html">Buka aplikasi</a>
+      <a href="pages/dashboard.html">Dashboard</a>
+      <a href="pages/gantt.html">Gantt chart</a>
+      <a href="pages/kanban.html">Kanban board</a>
+    </div>
+    <div class="info-grid">
+      <div class="info-card">
+        <strong>4 fase desain</strong>
+        <span>Concept → Preliminary → Contract → Functional</span>
+      </div>
+      <div class="info-card">
+        <strong>5 kategori</strong>
+        <span>Hull, Machinery, Electrical, HVAC, Production</span>
+      </div>
+      <div class="info-card">
+        <strong>150+ deliverable</strong>
+        <span>Item dari Basic Design Item List</span>
+      </div>
+      <div class="info-card">
+        <strong>4 tampilan</strong>
+        <span>Tree, Gantt, Kanban, Dashboard</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

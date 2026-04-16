@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Kanban Board — ShipDesign</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .kanban-wrap  { padding:16px 20px 32px; overflow-x:auto; }
+    .kanban-board { display:flex; gap:14px; min-width:700px; }
+    .k-col        { flex:1; min-width:170px; background:var(--bg-secondary); border-radius:var(--radius-lg); padding:10px; }
+    .k-col-hd     { font-size:12px; font-weight:500; color:var(--text-secondary); margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+    .k-count      { font-size:11px; background:var(--bg-primary); padding:1px 6px; border-radius:8px; color:var(--text-tertiary); }
+    .k-card       { background:var(--bg-primary); border:0.5px solid var(--border-light); border-radius:var(--radius-md); padding:9px 10px 8px; margin-bottom:6px; cursor:pointer; transition:border-color .12s; }
+    .k-card:hover { border-color:var(--border-mid); }
+    .k-card-top   { display:flex; justify-content:space-between; align-items:flex-start; gap:6px; margin-bottom:5px; }
+    .k-title      { font-size:12px; color:var(--text-primary); line-height:1.45; flex:1; }
+    .k-msg        { font-size:10px; color:var(--text-tertiary); display:flex; align-items:center; gap:3px; flex-shrink:0; }
+    .k-footer     { display:flex; gap:5px; align-items:center; flex-wrap:wrap; margin-top:4px; }
+    .k-phase      { font-size:10px; padding:1px 6px; border-radius:6px; font-weight:500; }
+    .k-cat        { font-size:10px; padding:1px 6px; border-radius:6px; background:var(--gray-50); color:var(--gray-600); }
+    .k-add        { width:100%; font-size:12px; color:var(--text-tertiary); border:none; background:none; cursor:pointer; padding:6px; text-align:left; border-radius:var(--radius-md); font-family:var(--font); }
+    .k-add:hover  { background:var(--bg-primary); color:var(--text-secondary); }
+    .k-add-locked { opacity:.35; cursor:not-allowed; }
+
+    /* overlay */
+    .overlay      { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42); z-index:200; align-items:flex-start; justify-content:center; padding:20px 16px; overflow-y:auto; }
+    .overlay.open { display:flex; }
+    .modal-wrap   { position:relative; width:100%; max-width:740px; align-self:flex-start; margin:auto; }
+    .modal        { background:var(--bg-primary); border-radius:var(--radius-xl); border:0.5px solid var(--border-light); width:100%; display:grid; grid-template-columns:1fr 270px; overflow:hidden; }
+    .modal-close  { position:absolute; top:12px; right:12px; width:28px; height:28px; border-radius:50%; background:var(--bg-secondary); border:0.5px solid var(--border-light); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-secondary); z-index:10; }
+    .modal-close:hover { background:var(--border-light); }
+
+    /* left pane */
+    .m-left       { padding:22px; overflow-y:auto; max-height:86vh; }
+    .m-breadcrumb { font-size:11px; color:var(--text-tertiary); margin-bottom:6px; }
+    .m-title      { font-size:15px; font-weight:500; line-height:1.4; margin-bottom:10px; }
+    .m-custom-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 7px; border-radius:8px; background:var(--amber-50); color:#633806; font-weight:500; margin-bottom:8px; }
+    .m-desc       { font-size:12px; color:var(--text-secondary); line-height:1.6; margin-bottom:18px; padding:10px 12px; background:var(--bg-secondary); border-radius:var(--radius-md); }
+    .section-hd   { font-size:12px; font-weight:500; color:var(--text-secondary); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+    .s-count      { font-size:11px; background:var(--bg-secondary); padding:1px 6px; border-radius:8px; color:var(--text-tertiary); }
+
+    /* comments */
+    .comment      { padding:10px 0; border-bottom:0.5px solid var(--border-light); }
+    .comment:last-child { border-bottom:none; }
+    .c-hd         { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+    .c-author     { font-size:12px; font-weight:500; }
+    .c-time       { font-size:10px; color:var(--text-tertiary); }
+    .c-body       { font-size:13px; color:var(--text-primary); line-height:1.55; margin-left:34px; }
+    .c-reject     { font-size:12px; color:#A32D2D; background:#FCEBEB; border-radius:var(--radius-md); padding:6px 10px; margin-left:34px; }
+    .c-acts       { display:flex; gap:12px; margin-left:34px; margin-top:4px; }
+    .c-btn        { font-size:11px; color:var(--text-tertiary); background:none; border:none; cursor:pointer; padding:0; font-family:var(--font); }
+    .c-btn:hover  { color:#185FA5; }
+    .replies      { margin-left:34px; margin-top:6px; border-left:2px solid var(--border-light); padding-left:12px; }
+    .reply        { padding:5px 0; border-bottom:0.5px solid var(--border-light); }
+    .reply:last-child { border-bottom:none; }
+    .reply-body   { font-size:12px; color:var(--text-primary); line-height:1.5; margin-left:28px; margin-top:2px; }
+    .ri-row       { margin-left:34px; margin-top:6px; display:none; gap:6px; align-items:center; }
+    .ri-row.open  { display:flex; }
+    .ri-row input { flex:1; font-size:12px; padding:5px 9px; border-radius:var(--radius-md); border:0.5px solid var(--border-mid); background:var(--bg-primary); color:var(--text-primary); font-family:var(--font); }
+    .ri-row input:focus { outline:none; border-color:#185FA5; }
+    .btn-send     { font-size:12px; padding:5px 11px; border-radius:var(--radius-md); background:#185FA5; color:#fff; border:none; cursor:pointer; font-family:var(--font); }
+    .btn-cancel-xs { font-size:12px; padding:5px 9px; border-radius:var(--radius-md); background:none; border:0.5px solid var(--border-mid); cursor:pointer; color:var(--text-secondary); font-family:var(--font); }
+    .nc-row       { display:flex; gap:8px; align-items:flex-start; margin-top:14px; }
+    .nc-row textarea { flex:1; font-size:13px; padding:7px 9px; border-radius:var(--radius-md); border:0.5px solid var(--border-mid); background:var(--bg-primary); color:var(--text-primary); resize:none; font-family:var(--font); min-height:56px; }
+    .nc-row textarea:focus { outline:none; border-color:#185FA5; }
+    .nc-btns      { display:flex; gap:6px; justify-content:flex-end; margin-top:6px; }
+
+    /* right pane */
+    .m-right      { padding:18px 15px; overflow-y:auto; max-height:86vh; background:var(--bg-secondary); border-left:0.5px solid var(--border-light); }
+    .r-sec        { margin-bottom:18px; }
+    .r-sec-title  { font-size:10px; font-weight:500; color:var(--text-tertiary); letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px; }
+    .r-field      { margin-bottom:9px; }
+    .r-key        { font-size:11px; color:var(--text-tertiary); margin-bottom:2px; }
+    .r-val        { font-size:13px; color:var(--text-primary); }
+    .st-grid      { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    .st-btn       { font-size:11px; padding:5px 6px; border-radius:var(--radius-md); border:0.5px solid var(--border-mid); cursor:pointer; text-align:center; background:var(--bg-primary); color:var(--text-secondary); font-family:var(--font); }
+    .st-btn:hover { border-color:#185FA5; color:#185FA5; }
+    .st-btn.active{ background:#185FA5; color:#fff; border-color:#185FA5; }
+    .st-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .ass-row      { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+    .a-name       { font-size:12px; font-weight:500; }
+    .a-role-txt   { font-size:11px; color:var(--text-tertiary); }
+
+    @media(max-width:580px){
+      .modal { grid-template-columns:1fr; }
+      .m-right { border-left:none; border-top:0.5px solid var(--border-light); max-height:none; }
+      .m-left  { max-height:none; }
+    }
+  </style>
+</head>
+<body>
+<script src="../js/data.js"></script>
+<script>document.write(renderShell('kanban'));</script>
+
+<div class="content-header">
+  <span class="page-title">Kanban board</span>
+  <span class="badge" id="k-badge">— items</span>
+  <div class="header-right">
+    <select id="phase-sel" onchange="renderBoard()">
+      <option value="all">Semua fase</option>
+      <option value="concept">Concept design</option>
+      <option value="preliminary">Preliminary design</option>
+      <option value="contract">Contract design</option>
+      <option value="functional">Functional design</option>
+    </select>
+    <select id="cat-sel" onchange="renderBoard()">
+      <option value="all">Semua kategori</option>
+      <option value="hull">Hull</option>
+      <option value="machinery">Machinery</option>
+      <option value="electrical">Electrical</option>
+      <option value="hvac">HVAC</option>
+      <option value="production">Production</option>
+    </select>
+    <button class="btn btn-blue" id="add-btn" onclick="openAddModal()">+ Add deliverable</button>
+  </div>
+</div>
+
+<div class="kanban-wrap"><div class="kanban-board" id="board"></div></div>
+
+<!-- card detail overlay -->
+<div class="overlay" id="overlay" onclick="bgClick(event)">
+  <div class="modal-wrap">
+    <button class="modal-close" onclick="closeOverlay()">&#x2715;</button>
+    <div class="modal">
+      <div class="m-left"  id="m-left"></div>
+      <div class="m-right" id="m-right"></div>
+    </div>
+  </div>
+</div>
+
+<!-- add deliverable modal -->
+<div class="add-modal-bg" id="add-bg" onclick="addBgClick(event)">
+  <div class="add-modal" id="add-modal">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+      <h3>Tambah deliverable</h3>
+      <button onclick="closeAddModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-tertiary);line-height:1">&#x2715;</button>
+    </div>
+    <p class="sub" id="add-sub"></p>
+    <div id="add-form-body"></div>
+  </div>
+</div>
+
+<script>
+document.write(closeShell());
+
+const tasks   = getTasks();
+const ME      = getCurrentUser();
+const MY_ROLE = ROLES[ME.role];
+let activeId  = null;
+
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ---- Add button visibility ---- */
+if (!canAddDeliverable()) {
+  document.getElementById('add-btn').title = 'Perlu role Supervisor ke atas';
+  document.getElementById('add-btn').style.opacity = '.4';
+  document.getElementById('add-btn').style.cursor = 'not-allowed';
+}
+
+/* ================================================================
+   BOARD
+   ================================================================ */
+function renderBoard() {
+  const pf = document.getElementById('phase-sel').value;
+  const cf = document.getElementById('cat-sel').value;
+  const filtered = tasks.filter(t=>(pf==='all'||t.phase===pf)&&(cf==='all'||t.cat===cf));
+  document.getElementById('k-badge').textContent = filtered.length+' items';
+  const comments = getComments();
+  const board    = document.getElementById('board');
+  board.innerHTML = '';
+  const COLS = ['todo','in-progress','done','overdue'];
+  const COL_NAMES = {'todo':'To do','in-progress':'In progress','done':'Done','overdue':'Overdue'};
+
+  COLS.forEach(col => {
+    const items = filtered.filter(t=>t.status===col);
+    const colEl = document.createElement('div');
+    colEl.className = 'k-col';
+    colEl.innerHTML = `<div class="k-col-hd">${COL_NAMES[col]}<span class="k-count">${items.length}</span></div>`;
+
+    items.forEach(t => {
+      const ph   = PHASES[t.phase];
+      const apSt = getApprovalStatus(t);
+      const cCnt = (comments[t.id]||[]).reduce((a,c)=>a+1+(c.replies||[]).length,0);
+      const card = document.createElement('div');
+      card.className = 'k-card';
+      card.innerHTML = `
+        <div class="k-card-top">
+          <div class="k-title">${esc(t.label)}</div>
+          ${cCnt>0?`<span class="k-msg"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M1 1h10v7H6.5L4 10V8H1V1z" stroke="currentColor" stroke-width="1.1"/></svg>${cCnt}</span>`:''}
+        </div>
+        <div class="k-footer">
+          <span class="k-phase" style="background:${ph.bg};color:${ph.tc}">${ph.label.split(' ')[0]}</span>
+          <span class="k-cat">${cap(t.cat)}</span>
+          <span class="appr-chip appr-chip-${apSt.level}">${apSt.level}/4 &#10003;</span>
+          ${t.custom?'<span style="font-size:10px;padding:1px 5px;border-radius:6px;background:var(--amber-50);color:#633806">Custom</span>':''}
+        </div>`;
+      card.onclick = () => openDetail(t);
+      colEl.appendChild(card);
+    });
+
+    const canAdd = canAddDeliverable();
+    const addBtn = document.createElement('button');
+    addBtn.className = 'k-add' + (canAdd?'':' k-add-locked');
+    addBtn.textContent = '+ Add card';
+    addBtn.disabled = !canAdd;
+    addBtn.onclick = canAdd ? openAddModal : null;
+    colEl.appendChild(addBtn);
+    board.appendChild(colEl);
+  });
+}
+
+/* ================================================================
+   CARD DETAIL
+   ================================================================ */
+function openDetail(task) {
+  activeId = task.id;
+  renderLeft(task);
+  renderRight(task);
+  document.getElementById('overlay').classList.add('open');
+}
+function closeOverlay() { document.getElementById('overlay').classList.remove('open'); }
+function bgClick(e) { if (e.target===document.getElementById('overlay')) closeOverlay(); }
+
+function renderLeft(task) {
+  const ph   = PHASES[task.phase];
+  const comments = getComments();
+  const list = comments[task.id] || [];
+  const total = list.reduce((a,c)=>a+1+(c.replies||[]).length,0);
+  const apSt  = getApprovalStatus(task);
+
+  const commentHtml = list.length ? list.map((c,ci) => {
+    const rHtml = (c.replies||[]).map(r=>`
+      <div class="reply">
+        <div class="c-hd">
+          <div class="av" style="background:${r.col};color:${r.tc};width:22px;height:22px;font-size:9px">${r.ini}</div>
+          <span class="c-author" style="font-size:11px">${esc(r.author)}</span>
+          <span class="c-time">${r.time}</span>
+        </div>
+        <div class="reply-body">${esc(r.text)}</div>
+      </div>`).join('');
+    return `<div class="comment">
+      <div class="c-hd">
+        <div class="av" style="background:${c.col};color:${c.tc}">${c.ini}</div>
+        <span class="c-author">${esc(c.author)}</span>
+        <span class="c-time">${c.time}</span>
+      </div>
+      ${c.isReject
+        ?`<div class="c-reject">&#9888; ${esc(c.text)}</div>`
+        :`<div class="c-body">${esc(c.text)}</div>`}
+      ${!c.isReject?`<div class="c-acts">
+        <button class="c-btn" onclick="toggleReply(${ci})">&#8629; Balas</button>
+        <button class="c-btn" id="lk-${ci}" onclick="toggleLike(${ci})">&#9825; Suka</button>
+      </div>`:''}
+      ${rHtml?`<div class="replies">${rHtml}</div>`:''}
+      <div class="ri-row" id="ri-${ci}">
+        <div class="av" style="background:${MY_ROLE.color};color:${MY_ROLE.tc};width:22px;height:22px;font-size:9px">${ME.initials}</div>
+        <input type="text" id="ri-inp-${ci}" placeholder="Tulis balasan…" onkeydown="if(event.key==='Enter')sendReply(${ci})">
+        <button class="btn-send" onclick="sendReply(${ci})">Kirim</button>
+        <button class="btn-cancel-xs" onclick="toggleReply(${ci})">Batal</button>
+      </div>
+    </div>`;
+  }).join('') : `<p style="font-size:13px;color:var(--text-tertiary);padding:6px 0">Belum ada komentar.</p>`;
+
+  document.getElementById('m-left').innerHTML = `
+    <div class="m-breadcrumb">${ph.label} &rsaquo; ${cap(task.cat)}</div>
+    ${task.custom?`<div class="m-custom-badge">&#9733; Custom deliverable &middot; Ditambah oleh ${esc(task.addedBy||'—')}</div>`:''}
+    <div class="m-title">${esc(task.label)}</div>
+    <div class="m-desc">Deliverable ini bagian dari tahap <strong>${ph.label}</strong>, kategori <strong>${cap(task.cat)}</strong>. Dokumen harus diverifikasi engineer penanggung jawab dan melalui <strong>4 tahap approval</strong> sebelum dinyatakan selesai.</div>
+
+    <div class="section-hd" style="margin-bottom:6px">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Approval flow
+      <span class="appr-chip appr-chip-${apSt.level}">${apSt.level}/4 disetujui</span>
+    </div>
+    ${approvalTrackHtml(task)}
+    <div style="margin-top:12px;margin-bottom:20px" id="appr-act-area">${approvalActionsHtml(task)}</div>
+
+    <div class="section-hd">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M1.5 2h11v8.5H8L5.5 13V10.5H1.5V2z" stroke="currentColor" stroke-width="1.1"/></svg>
+      Diskusi <span class="s-count">${total} pesan</span>
+    </div>
+    <div id="c-list">${commentHtml}</div>
+    <div class="nc-row">
+      <div class="av" style="background:${MY_ROLE.color};color:${MY_ROLE.tc};flex-shrink:0">${ME.initials}</div>
+      <textarea id="nc-txt" placeholder="Tulis komentar…" rows="2"></textarea>
+    </div>
+    <div class="nc-btns">
+      <button class="btn" onclick="document.getElementById('nc-txt').value=''">Batal</button>
+      <button class="btn btn-blue" onclick="postComment()">Kirim komentar</button>
+    </div>`;
+}
+
+function renderRight(task) {
+  const ph = PHASES[task.phase];
+  const assignees = TEAM_MEMBERS.slice(0, 2+(task.id%3));
+  const deadline = {concept:'Feb 2025',preliminary:'May 2025',contract:'Sep 2025',functional:'Jan 2026'}[task.phase]||'—';
+  const ck = {hull:['Buat draft','Review NA','Koreksi internal','Approval supervisor','Submit klien'],
+               machinery:['Verifikasi spesifikasi','Buat drawing','Review mech','Approval BKI','Final issue'],
+               electrical:['Load calc','Buat diagram','Review electrical','Cek IEC','Final issue'],
+               hvac:['Heat load analysis','Layout design','Review engineer','Approval final'],
+               production:['Draft schedule','Review manager','Koordinasi shipyard','Final issue']}[task.cat]||['Draft','Review','Revisi','Approval'];
+  const doneN = Math.min(Math.floor(task.approval.steps.filter(s=>s.approved).length/4*ck.length), ck.length);
+  const canChangeStatus = !['done'].includes(task.status) || MY_ROLE.level >= 3;
+
+  document.getElementById('m-right').innerHTML = `
+    <div class="r-sec">
+      <div class="r-sec-title">Status</div>
+      <div class="st-grid">
+        ${Object.entries(STATUS_CFG).map(([s,c])=>`
+          <button class="st-btn${task.status===s?' active':''}"
+            ${s==='done'&&MY_ROLE.level<3?'disabled title="Perlu Manager untuk set Done langsung — gunakan approval flow"':''}
+            onclick="setStatus(${task.id},'${s}')">${c.label}</button>`).join('')}
+      </div>
+      ${MY_ROLE.level<3?`<p style="font-size:10px;color:var(--text-tertiary);margin-top:6px">Status "Done" hanya tersedia lewat approval flow atau role Manager ke atas.</p>`:''}
+    </div>
+    <div class="r-sec">
+      <div class="r-sec-title">Detail</div>
+      <div class="r-field"><div class="r-key">Fase</div><div class="r-val"><span style="font-size:11px;padding:2px 7px;border-radius:8px;background:${ph.bg};color:${ph.tc};font-weight:500">${ph.label}</span></div></div>
+      <div class="r-field"><div class="r-key">Kategori</div><div class="r-val">${cap(task.cat)}</div></div>
+      <div class="r-field"><div class="r-key">Prioritas</div><div class="r-val">${['Tinggi','Sedang','Rendah'][task.id%3]}</div></div>
+      <div class="r-field"><div class="r-key">Tenggat</div><div class="r-val">${deadline}</div></div>
+      ${task.custom?`<div class="r-field"><div class="r-key">Ditambah oleh</div><div class="r-val">${esc(task.addedBy||'—')}</div></div>`:''}
+    </div>
+    <div class="r-sec">
+      <div class="r-sec-title">Assignee</div>
+      ${assignees.map(m=>{const mr=ROLES[m.role]; return `<div class="ass-row"><div class="av" style="background:${mr.color};color:${mr.tc}">${m.initials}</div><div><div class="a-name">${m.name}</div><div class="a-role-txt">${mr.label} &middot; ${m.dept}</div></div></div>`; }).join('')}
+    </div>
+    <div class="r-sec">
+      <div class="r-sec-title">Checklist (${doneN}/${ck.length})</div>
+      ${ck.map((item,i)=>`<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);margin-bottom:7px;cursor:pointer"><input type="checkbox" ${i<doneN?'checked':''} style="cursor:pointer;accent-color:#185FA5"><span${i<doneN?' style="text-decoration:line-through;color:var(--text-tertiary)"':''}>${item}</span></label>`).join('')}
+    </div>`;
+}
+
+/* ================================================================
+   APPROVAL HANDLERS
+   ================================================================ */
+function handleApprove(taskId) {
+  const note = (document.getElementById(`appr-note-${taskId}`)||{}).value||'';
+  if (doApprove(tasks, taskId, note)) {
+    const t = tasks.find(t=>t.id==taskId);
+    renderLeft(t); renderRight(t); renderBoard();
+  }
+}
+function handleReject(taskId) {
+  const note = (document.getElementById(`appr-note-${taskId}`)||{}).value||'';
+  if (!confirm('Reset semua approval untuk deliverable ini?')) return;
+  if (doReject(tasks, taskId, note)) {
+    const t = tasks.find(t=>t.id==taskId);
+    renderLeft(t); renderRight(t); renderBoard();
+  }
+}
+function setStatus(id, status) {
+  const t = tasks.find(t=>t.id==id); if (!t) return;
+  if (status==='done' && MY_ROLE.level < 3) return;
+  t.status = status; saveTasks(tasks); renderRight(t); renderBoard();
+}
+
+/* ================================================================
+   COMMENTS
+   ================================================================ */
+function postComment() {
+  const txt = document.getElementById('nc-txt').value.trim(); if (!txt) return;
+  const c = getComments(); if (!c[activeId]) c[activeId]=[];
+  c[activeId].push({id:Date.now(),author:ME.name,ini:ME.initials,col:MY_ROLE.color,tc:MY_ROLE.tc,time:'Baru saja',text:txt,replies:[]});
+  saveComments(c);
+  const t = tasks.find(t=>t.id===activeId); if(t){renderLeft(t);renderBoard();}
+}
+function toggleReply(ci) {
+  const el = document.getElementById('ri-'+ci); if(!el)return;
+  el.classList.toggle('open');
+  if(el.classList.contains('open')) { const inp=document.getElementById('ri-inp-'+ci); if(inp)inp.focus(); }
+}
+function sendReply(ci) {
+  const inp = document.getElementById('ri-inp-'+ci); if(!inp)return;
+  const txt = inp.value.trim(); if(!txt)return;
+  const c = getComments(); if(!c[activeId]||!c[activeId][ci])return;
+  c[activeId][ci].replies=c[activeId][ci].replies||[];
+  c[activeId][ci].replies.push({author:ME.name,ini:ME.initials,col:MY_ROLE.color,tc:MY_ROLE.tc,time:'Baru saja',text:txt});
+  saveComments(c);
+  const t = tasks.find(t=>t.id===activeId); if(t){renderLeft(t);renderBoard();}
+}
+function toggleLike(ci) {
+  const btn = document.getElementById('lk-'+ci); if(!btn)return;
+  btn.dataset.liked ? (delete btn.dataset.liked, btn.textContent='♡ Suka', btn.style.color='') : (btn.dataset.liked='1', btn.textContent='♥ Suka (1)', btn.style.color='#E24B4A');
+}
+
+/* ================================================================
+   ADD DELIVERABLE
+   ================================================================ */
+function openAddModal() {
+  const bg  = document.getElementById('add-bg');
+  const sub = document.getElementById('add-sub');
+  const body= document.getElementById('add-form-body');
+  if (!canAddDeliverable()) {
+    sub.textContent = '';
+    body.innerHTML = `<div class="add-locked"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="3" y="6" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="currentColor" stroke-width="1.2" fill="none"/></svg> Anda memerlukan role <strong>Supervisor</strong> atau lebih tinggi untuk menambah deliverable baru. Gunakan menu switch user di topbar.</div>`;
+  } else {
+    sub.textContent = `Login sebagai ${ME.name} (${MY_ROLE.label}) — dapat menambah deliverable baru.`;
+    body.innerHTML = `
+      <div class="form-row">
+        <label>Nama deliverable *</label>
+        <input type="text" id="f-label" placeholder="Contoh: Structural fire protection plan">
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Fase *</label>
+          <select id="f-phase">
+            ${Object.entries(PHASES).map(([k,p])=>`<option value="${k}">${p.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Kategori *</label>
+          <select id="f-cat">
+            ${['hull','machinery','electrical','hvac','production'].map(c=>`<option value="${c}">${cap(c)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Catatan / deskripsi</label>
+        <textarea id="f-note" rows="2" placeholder="Alasan penambahan deliverable ini…"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button class="btn" onclick="closeAddModal()">Batal</button>
+        <button class="btn btn-blue" onclick="submitAdd()">Tambah deliverable</button>
+      </div>`;
+  }
+  bg.classList.add('open');
+}
+function closeAddModal() { document.getElementById('add-bg').classList.remove('open'); }
+function addBgClick(e) { if(e.target===document.getElementById('add-bg')) closeAddModal(); }
+
+function submitAdd() {
+  const label = (document.getElementById('f-label')||{}).value?.trim();
+  const phase = (document.getElementById('f-phase')||{}).value;
+  const cat   = (document.getElementById('f-cat')||{}).value;
+  if (!label) { alert('Nama deliverable wajib diisi.'); return; }
+  const newTask = addDeliverable(tasks, label, phase, cat);
+  if (newTask) {
+    closeAddModal(); renderBoard();
+    /* auto-open new card */
+    setTimeout(() => openDetail(newTask), 150);
+  }
+}
+
+/* init */
+renderBoard();
+</script>
+</body>
+</html>
