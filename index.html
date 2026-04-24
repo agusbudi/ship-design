@@ -2,10 +2,505 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0;url=pages/dashboard.html">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>ShipDesign Scheduler</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ── Home-page specific ── */
+    .home-wrap   { padding: 24px 28px 48px; max-width: 1080px; }
+
+    .home-hero   { margin-bottom: 28px; }
+    .home-title  { font-size: 22px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+    .home-sub    { font-size: 14px; color: var(--text-secondary); }
+
+    /* filter bar */
+    .filter-bar  { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-pill {
+      font-size: 13px; padding: 5px 14px; border-radius: 20px;
+      border: 0.5px solid var(--border-mid); background: var(--bg-primary);
+      color: var(--text-secondary); cursor: pointer; font-family: var(--font);
+    }
+    .filter-pill:hover  { background: var(--bg-secondary); }
+    .filter-pill.active { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+    .filter-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+    /* section label */
+    .proj-section-hd {
+      font-size: 11px; font-weight: 500; color: var(--text-tertiary);
+      letter-spacing: .07em; text-transform: uppercase;
+      margin-bottom: 10px; margin-top: 4px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .proj-section-hd::after { content:''; flex:1; height:0.5px; background:var(--border-light); }
+
+    /* project card grid */
+    .proj-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .proj-card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      cursor: pointer;
+      transition: box-shadow .12s, border-color .12s;
+      text-decoration: none; color: inherit;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .proj-card:hover {
+      border-color: var(--blue-400);
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    }
+    .proj-card.done-card { opacity: .88; }
+
+    .pc-top    { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .pc-icon   {
+      width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pc-icon svg { width: 20px; height: 20px; }
+    .pc-title  { font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--text-primary); }
+    .pc-type   { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+
+    /* status pill on card */
+    .pc-status {
+      font-size: 11px; padding: 3px 9px; border-radius: 10px;
+      font-weight: 500; white-space: nowrap; flex-shrink: 0;
+    }
+    .ps-ongoing  { background: var(--blue-50);   color: var(--blue-800); }
+    .ps-done     { background: var(--green-50);  color: var(--green-600); }
+    .ps-planning { background: var(--amber-50);  color: #633806; }
+    .ps-overdue  { background: var(--red-50);    color: var(--red-800); }
+
+    /* progress bar */
+    .pc-prog-wrap { display: flex; align-items: center; gap: 8px; }
+    .pc-prog-bg   { flex: 1; height: 5px; background: var(--border-light); border-radius: 3px; overflow: hidden; }
+    .pc-prog-fill { height: 5px; border-radius: 3px; transition: width .3s; }
+    .pc-prog-pct  { font-size: 12px; color: var(--text-secondary); min-width: 32px; text-align: right; }
+
+    /* meta row */
+    .pc-meta { display: flex; gap: 14px; flex-wrap: wrap; }
+    .pc-meta-item { font-size: 12px; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px; }
+    .pc-meta-item svg { width: 12px; height: 12px; opacity: .6; }
+
+    /* phase dots */
+    .pc-phases { display: flex; gap: 4px; flex-wrap: wrap; }
+    .ph-dot {
+      font-size: 11px; padding: 2px 8px; border-radius: 6px;
+      font-weight: 500;
+    }
+
+    /* empty state */
+    .empty-state {
+      text-align: center; padding: 40px 20px;
+      color: var(--text-tertiary); font-size: 14px;
+      grid-column: 1 / -1;
+    }
+
+    /* new project button */
+    .btn-new {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; padding: 6px 14px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-mid);
+      background: var(--blue-600); color: #fff;
+      cursor: pointer; font-family: var(--font); text-decoration: none;
+    }
+    .btn-new:hover { background: var(--blue-800); }
+
+    /* add project modal */
+    .modal-bg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.35); z-index: 400;
+      align-items: center; justify-content: center;
+    }
+    .modal-bg.open { display: flex; }
+    .modal-box {
+      background: var(--bg-primary); border-radius: var(--radius-xl);
+      border: 0.5px solid var(--border-light);
+      padding: 24px; width: 480px; max-width: 94vw;
+    }
+    .modal-box h3 { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+    .modal-sub    { font-size: 12px; color: var(--text-tertiary); margin-bottom: 20px; }
+    .form-row     { margin-bottom: 13px; }
+    .form-row label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; font-weight: 500; }
+    .form-row input, .form-row select, .form-row textarea {
+      width: 100%; font-size: 13px; padding: 8px 10px;
+      border-radius: var(--radius-md); border: 0.5px solid var(--border-mid);
+      background: var(--bg-primary); color: var(--text-primary); font-family: var(--font);
+    }
+    .form-row input:focus, .form-row select:focus { outline: none; border-color: var(--blue-600); }
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  </style>
 </head>
 <body>
-  <script>location.replace('pages/dashboard.html');</script>
+<script src="js/data.js"></script>
+
+<!-- topbar only (no sidebar for home) -->
+<div class="app">
+  <div class="topbar">
+    <div class="logo-box">
+      <svg viewBox="0 0 18 18" fill="none"><path d="M2 13h14M2 13l2-5h10l2 5M6 8V5a3 3 0 016 0v3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <span class="logo-name">ShipDesign</span>
+    <span class="logo-sub">Scheduler</span>
+    <div class="topbar-right">
+      <script>
+        (function(){
+          const u = getCurrentUser();
+          const R = ROLES[u.role];
+          document.write(`
+            <div class="user-pill" id="user-pill" onclick="toggleUserMenu()">
+              <div class="av" style="background:${R.color};color:${R.tc}">${u.initials}</div>
+              <span style="font-size:13px;color:var(--text-primary)">${u.name}</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left:2px;color:var(--text-tertiary)"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            </div>
+            <div class="user-menu" id="user-menu">
+              <div class="menu-label">Ganti pengguna</div>
+              ${TEAM_MEMBERS.map(m=>`<div class="menu-item${m.id===u.id?' active':''}" onclick="switchUser('${m.id}')">
+                <div class="av" style="background:${ROLES[m.role].color};color:${ROLES[m.role].tc}">${m.initials}</div>
+                <div><div style="font-size:13px;font-weight:500">${m.name}</div><div style="font-size:11px;color:var(--text-tertiary)">${ROLES[m.role].label} &middot; ${m.dept}</div></div>
+              </div>`).join('')}
+            </div>`);
+        })();
+      </script>
+    </div>
+  </div>
+
+  <div style="flex:1; overflow-y:auto; background:var(--bg-tertiary);">
+    <div class="home-wrap">
+
+      <div class="home-hero">
+        <div class="home-title">Project overview</div>
+        <div class="home-sub">Manajemen penjadwalan desain kapal &mdash; semua proyek</div>
+      </div>
+
+      <!-- filter bar -->
+      <div class="filter-bar">
+        <button class="filter-pill active" onclick="setFilter('all',this)">Semua</button>
+        <button class="filter-pill" onclick="setFilter('ongoing',this)">Sedang berjalan</button>
+        <button class="filter-pill" onclick="setFilter('done',this)">Selesai</button>
+        <button class="filter-pill" onclick="setFilter('planning',this)">Perencanaan</button>
+        <button class="filter-pill" onclick="setFilter('overdue',this)">Terlambat</button>
+        <div class="filter-right">
+          <select id="sort-sel" onchange="renderProjects()" style="font-size:12px;padding:5px 8px;border-radius:var(--radius-md);border:0.5px solid var(--border-mid);background:var(--bg-primary);color:var(--text-primary);cursor:pointer">
+            <option value="name">Urutkan: Nama</option>
+            <option value="progress">Urutkan: Progress</option>
+            <option value="year">Urutkan: Tahun</option>
+          </select>
+          <button class="btn-new" onclick="openModal()">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 2v9M2 6.5h9" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Proyek baru
+          </button>
+        </div>
+      </div>
+
+      <!-- Ongoing -->
+      <div id="sec-ongoing">
+        <div class="proj-section-hd">Sedang berjalan</div>
+        <div class="proj-grid" id="grid-ongoing"></div>
+      </div>
+
+      <!-- Planning -->
+      <div id="sec-planning">
+        <div class="proj-section-hd">Perencanaan</div>
+        <div class="proj-grid" id="grid-planning"></div>
+      </div>
+
+      <!-- Overdue -->
+      <div id="sec-overdue">
+        <div class="proj-section-hd">Terlambat</div>
+        <div class="proj-grid" id="grid-overdue"></div>
+      </div>
+
+      <!-- Done -->
+      <div id="sec-done">
+        <div class="proj-section-hd">Selesai</div>
+        <div class="proj-grid" id="grid-done"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Add project modal -->
+<div class="modal-bg" id="modal-bg" onclick="bgClick(event)">
+  <div class="modal-box">
+    <h3>Tambah proyek baru</h3>
+    <div class="modal-sub">Proyek baru akan muncul di daftar dengan fase Concept Design.</div>
+
+    <div class="form-row">
+      <label>Nama proyek</label>
+      <input type="text" id="f-name" placeholder="cth. KRI Nusantara — 2026">
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Tipe kapal</label>
+        <select id="f-type">
+          <option>Kapal Patroli</option>
+          <option>Kapal Perang</option>
+          <option>Kapal Tanker</option>
+          <option>Kapal Kontainer</option>
+          <option>Kapal Riset</option>
+          <option>Kapal Ferry</option>
+          <option>Kapal Tunda</option>
+          <option>Lainnya</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Tahun mulai</label>
+        <input type="number" id="f-year" value="2025" min="2020" max="2035">
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Klien / pemesan</label>
+        <input type="text" id="f-client" placeholder="cth. TNI AL">
+      </div>
+      <div class="form-row">
+        <label>Status awal</label>
+        <select id="f-status">
+          <option value="planning">Perencanaan</option>
+          <option value="ongoing">Sedang berjalan</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Keterangan singkat</label>
+      <textarea id="f-desc" rows="2" placeholder="Deskripsi proyek (opsional)"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn btn-blue" onclick="submitProject()">Tambah proyek</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   Project data — stored in localStorage so it persists
+   ================================================================ */
+const SHIP_ICON = `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M3 14h14M3 14l2-5h10l2 5M7 9V6a3 3 0 016 0v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="10" cy="4" r="1" fill="currentColor"/>
+</svg>`;
+
+const ICON_COLORS = {
+  ongoing:  { bg: '#E6F1FB', fg: '#185FA5' },
+  done:     { bg: '#EAF3DE', fg: '#3B6D11' },
+  planning: { bg: '#FAEEDA', fg: '#633806' },
+  overdue:  { bg: '#FCEBEB', fg: '#A32D2D' }
+};
+
+const DEFAULT_PROJECTS = [
+  {
+    id: 'p001', name: 'KRI Rencong — Kapal Patroli 60m',
+    type: 'Kapal Patroli', client: 'TNI AL', year: 2025,
+    status: 'ongoing', progress: 62,
+    desc: 'Desain fungsional kapal patroli kelas Rencong untuk pengamanan perairan nasional.',
+    phases: { concept: true, preliminary: true, contract: true, functional: false },
+    deliverables: { total: 152, done: 94 }
+  },
+  {
+    id: 'p002', name: 'MT Nusantara Jaya — Tanker 17.500 DWT',
+    type: 'Kapal Tanker', client: 'Pertamina Shipping', year: 2025,
+    status: 'ongoing', progress: 38,
+    desc: 'Medium-range tanker untuk distribusi BBM domestik, klasifikasi BKI.',
+    phases: { concept: true, preliminary: true, contract: false, functional: false },
+    deliverables: { total: 148, done: 56 }
+  },
+  {
+    id: 'p003', name: 'KN Bimasakti — Kapal Riset Oseanografi',
+    type: 'Kapal Riset', client: 'BRIN', year: 2024,
+    status: 'overdue', progress: 55,
+    desc: 'Kapal riset kelautan multifungsi, dilengkapi laboratorium dan moonpool.',
+    phases: { concept: true, preliminary: true, contract: true, functional: false },
+    deliverables: { total: 165, done: 91 }
+  },
+  {
+    id: 'p004', name: 'Ferry Komodo Express — RoPax 120m',
+    type: 'Kapal Ferry', client: 'ASDP Indonesia Ferry', year: 2023,
+    status: 'done', progress: 100,
+    desc: 'RoPax ferry berkapasitas 600 penumpang dan 80 kendaraan untuk jalur Merak-Bakauheni.',
+    phases: { concept: true, preliminary: true, contract: true, functional: true },
+    deliverables: { total: 143, done: 143 }
+  },
+  {
+    id: 'p005', name: 'KRI Diponegoro Class — Corvette Upgrade',
+    type: 'Kapal Perang', client: 'Kemenhan RI', year: 2023,
+    status: 'done', progress: 100,
+    desc: 'Mid-life upgrade desain sistem senjata dan navigasi kapal korvet kelas Diponegoro.',
+    phases: { concept: true, preliminary: true, contract: true, functional: true },
+    deliverables: { total: 118, done: 118 }
+  },
+  {
+    id: 'p006', name: 'Kontainer Feeder 1.200 TEU — Seri Baru',
+    type: 'Kapal Kontainer', client: 'PT Pelni', year: 2026,
+    status: 'planning', progress: 8,
+    desc: 'Desain konsep kapal kontainer feeder untuk konektivitas pelabuhan kecil Nusantara.',
+    phases: { concept: false, preliminary: false, contract: false, functional: false },
+    deliverables: { total: 156, done: 12 }
+  },
+  {
+    id: 'p007', name: 'Kapal Tunda Harbour Tug 45T BP',
+    type: 'Kapal Tunda', client: 'PT Pelabuhan Indonesia', year: 2026,
+    status: 'planning', progress: 0,
+    desc: 'Harbour tug dengan bollard pull 45 ton untuk pelabuhan Tanjung Priok.',
+    phases: { concept: false, preliminary: false, contract: false, functional: false },
+    deliverables: { total: 98, done: 0 }
+  },
+  {
+    id: 'p008', name: 'LCT Dharma Kencana — 500 GT',
+    type: 'Kapal Ferry', client: 'Swasta', year: 2022,
+    status: 'done', progress: 100,
+    desc: 'Landing Craft Tank komersial untuk angkutan berat kepulauan Indonesia Timur.',
+    phases: { concept: true, preliminary: true, contract: true, functional: true },
+    deliverables: { total: 102, done: 102 }
+  }
+];
+
+function loadProjects() {
+  try {
+    const s = localStorage.getItem('sd_projects');
+    return s ? JSON.parse(s) : DEFAULT_PROJECTS;
+  } catch(e) { return DEFAULT_PROJECTS; }
+}
+function saveProjects(p) {
+  try { localStorage.setItem('sd_projects', JSON.stringify(p)); } catch(e) {}
+}
+// seed once
+if (!localStorage.getItem('sd_projects')) saveProjects(DEFAULT_PROJECTS);
+
+let currentFilter = 'all';
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderProjects();
+}
+
+function renderProjects() {
+  const sort = document.getElementById('sort-sel').value;
+  let projects = loadProjects();
+
+  if (sort === 'name')     projects = [...projects].sort((a,b) => a.name.localeCompare(b.name));
+  if (sort === 'progress') projects = [...projects].sort((a,b) => b.progress - a.progress);
+  if (sort === 'year')     projects = [...projects].sort((a,b) => b.year - a.year);
+
+  const filter = f => currentFilter === 'all' ? true : f.status === currentFilter;
+
+  const buckets = {
+    ongoing:  projects.filter(p => p.status === 'ongoing'  && filter(p)),
+    planning: projects.filter(p => p.status === 'planning' && filter(p)),
+    overdue:  projects.filter(p => p.status === 'overdue'  && filter(p)),
+    done:     projects.filter(p => p.status === 'done'     && filter(p))
+  };
+
+  const STATUS_LABEL = { ongoing:'Sedang berjalan', done:'Selesai', planning:'Perencanaan', overdue:'Terlambat' };
+  const STATUS_CLS   = { ongoing:'ps-ongoing', done:'ps-done', planning:'ps-planning', overdue:'ps-overdue' };
+
+  function cardHtml(p) {
+    const ic = ICON_COLORS[p.status];
+    const phEntries = Object.entries(PHASES);
+    const progColor = p.status === 'done' ? '#3B6D11' : p.status === 'overdue' ? '#E24B4A' : p.status === 'planning' ? '#BA7517' : '#185FA5';
+
+    return `<a class="proj-card${p.status==='done'?' done-card':''}" href="pages/dashboard.html" title="${p.name}">
+      <div class="pc-top">
+        <div style="display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0">
+          <div class="pc-icon" style="background:${ic.bg};color:${ic.fg}">${SHIP_ICON}</div>
+          <div style="min-width:0">
+            <div class="pc-title">${p.name}</div>
+            <div class="pc-type">${p.type} &middot; ${p.year}</div>
+          </div>
+        </div>
+        <span class="pc-status ${STATUS_CLS[p.status]}">${STATUS_LABEL[p.status]}</span>
+      </div>
+
+      <div class="pc-prog-wrap">
+        <div class="pc-prog-bg"><div class="pc-prog-fill" style="width:${p.progress}%;background:${progColor}"></div></div>
+        <span class="pc-prog-pct">${p.progress}%</span>
+      </div>
+
+      <div class="pc-phases">
+        ${phEntries.map(([k,ph]) => {
+          const active = p.phases[k];
+          return `<span class="ph-dot" style="background:${active ? ph.bg : 'var(--bg-secondary)'};color:${active ? ph.tc : 'var(--text-tertiary)'}">${ph.label.split(' ')[0]}</span>`;
+        }).join('')}
+      </div>
+
+      <div class="pc-meta">
+        <span class="pc-meta-item">
+          <svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.1"/><path d="M6 3.5v2.5l1.5 1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          ${p.deliverables.done}/${p.deliverables.total} deliverable
+        </span>
+        <span class="pc-meta-item">
+          <svg viewBox="0 0 12 12" fill="none"><rect x="1.5" y="2" width="9" height="8.5" rx="1" stroke="currentColor" stroke-width="1.1"/><path d="M4 1v2M8 1v2M1.5 5h9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          ${p.client}
+        </span>
+      </div>
+    </a>`;
+  }
+
+  function renderSection(id, secId, arr) {
+    const grid = document.getElementById('grid-' + id);
+    const sec  = document.getElementById('sec-'  + secId);
+    if (!grid) return;
+    const show = arr.length > 0 && (currentFilter === 'all' || currentFilter === id);
+    sec.style.display = show ? '' : 'none';
+    grid.innerHTML = arr.length
+      ? arr.map(cardHtml).join('')
+      : `<div class="empty-state">Tidak ada proyek di kategori ini.</div>`;
+  }
+
+  renderSection('ongoing',  'ongoing',  buckets.ongoing);
+  renderSection('planning', 'planning', buckets.planning);
+  renderSection('overdue',  'overdue',  buckets.overdue);
+  renderSection('done',     'done',     buckets.done);
+}
+
+/* ── Modal ── */
+function openModal() {
+  document.getElementById('modal-bg').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('open');
+}
+function bgClick(e) {
+  if (e.target === document.getElementById('modal-bg')) closeModal();
+}
+function submitProject() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { document.getElementById('f-name').focus(); return; }
+
+  const projects = loadProjects();
+  projects.unshift({
+    id: 'p' + Date.now(),
+    name,
+    type:   document.getElementById('f-type').value,
+    client: document.getElementById('f-client').value || '—',
+    year:   parseInt(document.getElementById('f-year').value) || 2025,
+    status: document.getElementById('f-status').value,
+    progress: document.getElementById('f-status').value === 'ongoing' ? 5 : 0,
+    desc:   document.getElementById('f-desc').value || '',
+    phases: { concept: false, preliminary: false, contract: false, functional: false },
+    deliverables: { total: 0, done: 0 }
+  });
+  saveProjects(projects);
+  closeModal();
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-client').value = '';
+  document.getElementById('f-desc').value = '';
+  renderProjects();
+}
+
+renderProjects();
+</script>
 </body>
 </html>
