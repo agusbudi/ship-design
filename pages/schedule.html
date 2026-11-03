@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>P445 Delivery Schedule — ShipDesign</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .sch-wrap { padding: 14px 24px 32px; }
+
+    .sch-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+    .sch-search {
+      font-size:13px; padding:7px 11px; border-radius:var(--radius-md);
+      border:0.5px solid var(--border-mid); background:var(--bg-primary);
+      color:var(--text-primary); font-family:var(--font); width:240px;
+    }
+    .sch-search:focus { outline:none; border-color:var(--blue-600); }
+    .sch-select {
+      font-size:13px; padding:7px 10px; border-radius:var(--radius-md);
+      border:0.5px solid var(--border-mid); background:var(--bg-primary);
+      color:var(--text-primary); cursor:pointer; font-family:var(--font);
+    }
+    .sch-pill {
+      font-size:12px; padding:5px 12px; border-radius:20px;
+      border:0.5px solid var(--border-mid); background:var(--bg-primary);
+      color:var(--text-secondary); cursor:pointer; font-family:var(--font);
+    }
+    .sch-pill:hover  { background:var(--bg-secondary); }
+    .sch-pill.active { background:var(--blue-600); color:#fff; border-color:var(--blue-600); }
+    .sch-count { margin-left:auto; font-size:12px; color:var(--text-tertiary); }
+
+    .sch-stats { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .sch-stat {
+      flex:1; min-width:120px; background:var(--bg-primary);
+      border:0.5px solid var(--border-light); border-radius:var(--radius-lg);
+      padding:12px 14px;
+    }
+    .sch-stat-num { font-size:20px; font-weight:500; color:var(--text-primary); line-height:1.2; }
+    .sch-stat-lbl { font-size:11px; color:var(--text-tertiary); margin-top:2px; }
+
+    .sch-table-wrap {
+      background:var(--bg-primary); border:0.5px solid var(--border-light);
+      border-radius:var(--radius-lg); overflow:hidden;
+    }
+    table.sch-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .sch-table thead th {
+      text-align:left; font-size:11px; font-weight:500; color:var(--text-tertiary);
+      text-transform:uppercase; letter-spacing:.04em;
+      padding:9px 12px; border-bottom:0.5px solid var(--border-light);
+      background:var(--bg-secondary); white-space:nowrap; position:sticky; top:0;
+      cursor:pointer; user-select:none;
+    }
+    .sch-table thead th:hover { color:var(--text-primary); }
+    .sch-table thead th.sorted { color:var(--blue-600); }
+    .sch-table tbody td {
+      padding:8px 12px; border-bottom:0.5px solid var(--border-light);
+      vertical-align:top;
+    }
+    .sch-table tbody tr:last-child td { border-bottom:none; }
+    .sch-table tbody tr:hover { background:var(--bg-secondary); }
+    .sch-table tbody tr.received { background:var(--green-50); }
+    .sch-table tbody tr.received:hover { background:var(--green-50); filter:brightness(0.98); }
+    .sch-code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:var(--text-secondary); white-space:nowrap; }
+    .sch-title { font-weight:500; color:var(--text-primary); }
+    .sch-sub   { font-size:11px; color:var(--text-tertiary); margin-top:1px; }
+    .sch-nowrap { white-space:nowrap; }
+    .sch-ph {
+      font-size:11px; padding:2px 8px; border-radius:6px; font-weight:500; white-space:nowrap;
+    }
+    .sch-empty { padding:40px 20px; text-align:center; color:var(--text-tertiary); font-size:13px; }
+    .sch-recv-chk { width:16px; height:16px; cursor:pointer; accent-color: var(--green-600); }
+
+    /* ---- S-curve card ---- */
+    .viz-root {
+      color-scheme: light;
+      --surface-1:      #fcfcfb;
+      --text-primary:   #0b0b0b;
+      --text-secondary: #52514e;
+      --text-muted:     #898781;
+      --series-plan:    #2a78d6;
+      --series-act:     #eb6834;
+      --grid-line:      #e1e0d9;
+      --baseline:       #c3c2b7;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:where(:not([data-theme="light"])) .viz-root {
+        color-scheme: dark;
+        --surface-1:      #1a1a19;
+        --text-primary:   #f0efec;
+        --text-secondary: #c3c2b7;
+        --text-muted:     #898781;
+        --series-plan:    #3987e5;
+        --series-act:     #d95926;
+        --grid-line:      #2c2c2a;
+        --baseline:       #383835;
+      }
+    }
+    :root[data-theme="dark"] .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --text-primary:   #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --series-plan:    #3987e5;
+      --series-act:     #d95926;
+      --grid-line:      #2c2c2a;
+      --baseline:       #383835;
+    }
+
+    .scurve-card {
+      background:var(--surface-1); border:0.5px solid var(--border-light);
+      border-radius:var(--radius-lg); padding:18px 20px 10px; margin-bottom:16px;
+    }
+    .scurve-hd { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:6px; flex-wrap:wrap; }
+    .scurve-title { font-size:14px; font-weight:500; color:var(--text-primary); }
+    .scurve-sub   { font-size:12px; color:var(--text-muted); margin-top:2px; }
+    .scurve-hero  { text-align:right; }
+    .scurve-hero-num { font-size:28px; font-weight:500; color:var(--text-primary); line-height:1.1; }
+    .scurve-hero-lbl { font-size:11px; color:var(--text-muted); margin-top:2px; }
+    .scurve-hero-delta { font-size:12px; margin-top:3px; font-weight:500; }
+    .scurve-legend { display:flex; gap:16px; margin:4px 0 6px; flex-wrap:wrap; }
+    .scurve-lgd-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); }
+    .scurve-lgd-line { width:16px; height:2px; border-radius:1px; flex-shrink:0; }
+    .scurve-svg-wrap { position:relative; }
+    .scurve-tooltip {
+      position:absolute; pointer-events:none; background:var(--surface-1);
+      border:0.5px solid var(--border-mid); border-radius:var(--radius-md);
+      padding:8px 10px; font-size:12px; box-shadow:0 2px 10px rgba(0,0,0,.12);
+      transform:translate(-50%,-110%); white-space:nowrap; opacity:0; transition:opacity .08s;
+      z-index:20;
+    }
+    .scurve-tooltip.show { opacity:1; }
+    .scurve-tt-date { color:var(--text-muted); font-size:11px; margin-bottom:4px; }
+    .scurve-tt-row { display:flex; align-items:center; gap:6px; }
+    .scurve-tt-key { width:10px; height:2px; border-radius:1px; flex-shrink:0; }
+    .scurve-tt-val { font-weight:600; color:var(--text-primary); margin-left:auto; padding-left:10px; }
+    .scurve-tt-name { color:var(--text-secondary); }
+  </style>
+</head>
+<body>
+<script src="../js/data.js"></script>
+<script>document.write(renderShell('schedule'));</script>
+
+<div class="content-header">
+  <span class="page-title">P445 Delivery Schedule</span>
+  <span class="badge">Ro-Pax 1000 &middot; NAOS P445_DDS_00 Rev.00</span>
+</div>
+
+<div class="sch-wrap">
+
+  <!-- ===================== S-CURVE ===================== -->
+  <div class="scurve-card viz-root" id="scurve-card">
+    <div class="scurve-hd">
+      <div>
+        <div class="scurve-title">S-curve &mdash; kumulatif capaian dokumen</div>
+        <div class="scurve-sub">Rencana (planned) vs aktual, mingguan &middot; 11 Jan&ndash;29 Okt 2027</div>
+      </div>
+      <div class="scurve-hero">
+        <div class="scurve-hero-num" id="sc-hero-num">0%</div>
+        <div class="scurve-hero-lbl">Capaian aktual keseluruhan</div>
+        <div class="scurve-hero-delta" id="sc-hero-delta"></div>
+      </div>
+    </div>
+    <div class="scurve-legend">
+      <span class="scurve-lgd-item"><span class="scurve-lgd-line" style="background:var(--series-plan)"></span>Rencana</span>
+      <span class="scurve-lgd-item"><span class="scurve-lgd-line" style="background:var(--series-act)"></span>Aktual</span>
+    </div>
+    <div class="scurve-svg-wrap" id="scurve-svg-wrap"></div>
+  </div>
+
+  <div class="sch-stats" id="sch-stats"></div>
+
+  <div class="sch-toolbar">
+    <input type="text" class="sch-search" id="sch-search" placeholder="Cari kode atau judul dokumen&hellip;" oninput="renderTable()">
+    <button class="sch-pill active" data-phase="all" onclick="setPhase('all',this)">Semua fase</button>
+    <button class="sch-pill" data-phase="C" onclick="setPhase('C',this)">Conceptual</button>
+    <button class="sch-pill" data-phase="P" onclick="setPhase('P',this)">Preliminary</button>
+    <button class="sch-pill" data-phase="B" onclick="setPhase('B',this)">Basic</button>
+    <select class="sch-select" id="sch-discipline" onchange="renderTable()">
+      <option value="all">Semua disiplin</option>
+    </select>
+    <span class="sch-count" id="sch-count"></span>
+  </div>
+
+  <div class="sch-table-wrap">
+    <table class="sch-table">
+      <thead>
+        <tr>
+          <th style="width:30px"></th>
+          <th data-key="no" style="width:44px">No.</th>
+          <th data-key="code">Code</th>
+          <th data-key="title">Document title</th>
+          <th data-key="discipline">Discipline</th>
+          <th data-key="phase_name">Phase</th>
+          <th data-key="issue">Issue</th>
+          <th data-key="week">Week</th>
+          <th data-key="start">Start</th>
+          <th data-key="end">End</th>
+        </tr>
+      </thead>
+      <tbody id="sch-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+document.write(closeShell());
+
+/* ---- Source: NAOS P445_DDS_00 Rev.00, issued 20-Oct-2026 -- Schedule sheet (all 136 rows) ---- */
+const SCHEDULE_DATA = [{"no": 1, "code": "160110", "title": "Power prediction (statistical)", "discipline": "General & naval architecture", "phase": "C", "phase_name": "Conceptual", "issue": "1 of 1", "week": 2, "start": "2027-01-11", "end": "2027-01-15", "month": "Jan 2027", "remarks": null}, {"no": 2, "code": "102000", "title": "External surfaces 3D model", "discipline": "General & naval architecture", "phase": "C", "phase_name": "Conceptual", "issue": "1 of 1", "week": 3, "start": "2027-01-18", "end": "2027-01-22", "month": "Jan 2027", "remarks": null}, {"no": 3, "code": "102100", "title": "Renderings and pictures", "discipline": "General & naval architecture", "phase": "C", "phase_name": "Conceptual", "issue": "1 of 1", "week": 3, "start": "2027-01-18", "end": "2027-01-22", "month": "Jan 2027", "remarks": null}, {"no": 4, "code": "-", "title": "Preliminary calculation for concept", "discipline": "General & naval architecture", "phase": "C", "phase_name": "Conceptual", "issue": "1 of 1", "week": 4, "start": "2027-01-25", "end": "2027-01-29", "month": "Jan 2027", "remarks": null}, {"no": 5, "code": "100400", "title": "Conceptual GA (Functional Space Allocation Plan)", "discipline": "General & naval architecture", "phase": "C", "phase_name": "Conceptual", "issue": "1 of 1", "week": 4, "start": "2027-01-25", "end": "2027-01-29", "month": "Jan 2027", "remarks": null}, {"no": 6, "code": "101600", "title": "Vessel technical details (Vessel short description)", "discipline": "General & naval architecture", "phase": "C", "phase_name": "Conceptual", "issue": "1 of 1", "week": 4, "start": "2027-01-25", "end": "2027-01-29", "month": "Jan 2027", "remarks": null}, {"no": 7, "code": "111000", "title": "Weight estimation", "discipline": "General & naval architecture", "phase": "C", "phase_name": "Conceptual", "issue": "1 of 3", "week": 4, "start": "2027-01-25", "end": "2027-01-29", "month": "Jan 2027", "remarks": null}, {"no": 8, "code": "200010", "title": "Geometry definition plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 4, "start": "2027-01-25", "end": "2027-01-29", "month": "Jan 2027", "remarks": null}, {"no": 9, "code": "200000", "title": "Midship section", "discipline": "Hull structure", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 6, "start": "2027-02-08", "end": "2027-02-12", "month": "Feb 2027", "remarks": null}, {"no": 10, "code": "500000", "title": "Engine room arrangement plan", "discipline": "Machinery systems", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 8, "start": "2027-02-22", "end": "2027-02-26", "month": "Feb 2027", "remarks": null}, {"no": 11, "code": "111000", "title": "Weight estimation", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "2 of 3", "week": 9, "start": "2027-03-01", "end": "2027-03-05", "month": "Mar 2027", "remarks": null}, {"no": 12, "code": "160120", "title": "CFD analysis and power prediction", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 9, "start": "2027-03-01", "end": "2027-03-05", "month": "Mar 2027", "remarks": null}, {"no": 13, "code": "165100", "title": "EEDI Technical File at design stage", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 9, "start": "2027-03-01", "end": "2027-03-05", "month": "Mar 2027", "remarks": null}, {"no": 14, "code": "121000", "title": "Lines plan", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 10, "start": "2027-03-08", "end": "2027-03-12", "month": "Mar 2027", "remarks": null}, {"no": 15, "code": "600100", "title": "Electric load balance", "discipline": "Electrical", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 10, "start": "2027-03-08", "end": "2027-03-12", "month": "Mar 2027", "remarks": null}, {"no": 16, "code": "100000", "title": "General arrangement plan", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 11, "start": "2027-03-15", "end": "2027-03-19", "month": "Mar 2027", "remarks": null}, {"no": 17, "code": "570000", "title": "Air conditioning diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 12, "start": "2027-03-22", "end": "2027-03-26", "month": "Mar 2027", "remarks": null}, {"no": 18, "code": "130000", "title": "Capacity plan", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 13, "start": "2027-03-29", "end": "2027-04-02", "month": "Mar 2027", "remarks": null}, {"no": 19, "code": "163000", "title": "Maneuverability analysis", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 1", "week": 14, "start": "2027-04-05", "end": "2027-04-09", "month": "Apr 2027", "remarks": null}, {"no": 20, "code": "101000", "title": "Outline specification", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 1", "week": 15, "start": "2027-04-12", "end": "2027-04-16", "month": "Apr 2027", "remarks": null}, {"no": 21, "code": "151310", "title": "Bending moment and shear forces diagram", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 1", "week": 15, "start": "2027-04-12", "end": "2027-04-16", "month": "Apr 2027", "remarks": null}, {"no": 22, "code": "164000", "title": "Seakeeping analysis", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 1", "week": 15, "start": "2027-04-12", "end": "2027-04-16", "month": "Apr 2027", "remarks": null}, {"no": 23, "code": "112000", "title": "Tonnage calculation", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 2", "week": 16, "start": "2027-04-19", "end": "2027-04-23", "month": "Apr 2027", "remarks": null}, {"no": 24, "code": "150000", "title": "Stability assessment", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 1", "week": 16, "start": "2027-04-19", "end": "2027-04-23", "month": "Apr 2027", "remarks": null}, {"no": 25, "code": "105900", "title": "3D accommodation layout", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 1", "week": 17, "start": "2027-04-26", "end": "2027-04-30", "month": "Apr 2027", "remarks": null}, {"no": 26, "code": "110000", "title": "Engineering estimate (AACE Lvl.5)", "discipline": "General & naval architecture", "phase": "P", "phase_name": "Preliminary", "issue": "1 of 1", "week": 17, "start": "2027-04-26", "end": "2027-04-30", "month": "Apr 2027", "remarks": null}, {"no": 27, "code": "130000", "title": "Capacity plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 18, "start": "2027-05-03", "end": "2027-05-07", "month": "May 2027", "remarks": null}, {"no": 28, "code": "200000", "title": "Midship section", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 18, "start": "2027-05-03", "end": "2027-05-07", "month": "May 2027", "remarks": null}, {"no": 29, "code": "121000", "title": "Lines plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 19, "start": "2027-05-10", "end": "2027-05-14", "month": "May 2027", "remarks": null}, {"no": 30, "code": "160120", "title": "CFD analysis and power prediction", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 19, "start": "2027-05-10", "end": "2027-05-14", "month": "May 2027", "remarks": null}, {"no": 31, "code": "200020", "title": "Bulkheads arrangement plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 19, "start": "2027-05-10", "end": "2027-05-14", "month": "May 2027", "remarks": null}, {"no": 32, "code": "500000", "title": "Engine room arrangement plan", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 19, "start": "2027-05-10", "end": "2027-05-14", "month": "May 2027", "remarks": null}, {"no": 33, "code": "600100", "title": "Electric load balance", "discipline": "Electrical", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 19, "start": "2027-05-10", "end": "2027-05-14", "month": "May 2027", "remarks": null}, {"no": 34, "code": "123000", "title": "Appendages arrangement plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 20, "start": "2027-05-17", "end": "2027-05-21", "month": "May 2027", "remarks": null}, {"no": 35, "code": "143000", "title": "Freeboard calculation", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 20, "start": "2027-05-17", "end": "2027-05-21", "month": "May 2027", "remarks": null}, {"no": 36, "code": "510000", "title": "Bilge diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 20, "start": "2027-05-17", "end": "2027-05-21", "month": "May 2027", "remarks": null}, {"no": 37, "code": "528000", "title": "Heat balance", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 20, "start": "2027-05-17", "end": "2027-05-21", "month": "May 2027", "remarks": null}, {"no": 38, "code": "602000", "title": "Electric single line diagrams of distribution", "discipline": "Electrical", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 20, "start": "2027-05-17", "end": "2027-05-21", "month": "May 2027", "remarks": null}, {"no": 39, "code": "100000", "title": "General arrangement plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 21, "start": "2027-05-24", "end": "2027-05-28", "month": "May 2027", "remarks": null}, {"no": 40, "code": "143100", "title": "Freeboard plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 21, "start": "2027-05-24", "end": "2027-05-28", "month": "May 2027", "remarks": null}, {"no": 41, "code": "200011", "title": "Free height definition", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 21, "start": "2027-05-24", "end": "2027-05-28", "month": "May 2027", "remarks": null}, {"no": 42, "code": "511000", "title": "Ballast diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 21, "start": "2027-05-24", "end": "2027-05-28", "month": "May 2027", "remarks": null}, {"no": 43, "code": "561000", "title": "Ventilation plan outside E.R.", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 21, "start": "2027-05-24", "end": "2027-05-28", "month": "May 2027", "remarks": null}, {"no": 44, "code": "602100", "title": "Main switchboard functional diagram", "discipline": "Electrical", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 21, "start": "2027-05-24", "end": "2027-05-28", "month": "May 2027", "remarks": null}, {"no": 45, "code": "111000", "title": "Weight estimation", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "3 of 3", "week": 22, "start": "2027-05-31", "end": "2027-06-04", "month": "May 2027", "remarks": null}, {"no": 46, "code": "131400", "title": "Air vents height", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 22, "start": "2027-05-31", "end": "2027-06-04", "month": "May 2027", "remarks": null}, {"no": 47, "code": "512100", "title": "External scuppers diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 22, "start": "2027-05-31", "end": "2027-06-04", "month": "May 2027", "remarks": null}, {"no": 48, "code": "512200", "title": "Internal scuppers diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 22, "start": "2027-05-31", "end": "2027-06-04", "month": "May 2027", "remarks": null}, {"no": 49, "code": "562000", "title": "Ventilation plan inside E.R.", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 22, "start": "2027-05-31", "end": "2027-06-04", "month": "May 2027", "remarks": null}, {"no": 50, "code": "602200", "title": "Emergency switchboard functional diagram", "discipline": "Electrical", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 22, "start": "2027-05-31", "end": "2027-06-04", "month": "May 2027", "remarks": null}, {"no": 51, "code": "111100", "title": "Weight distribution", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 23, "start": "2027-06-07", "end": "2027-06-11", "month": "Jun 2027", "remarks": null}, {"no": 52, "code": "131300", "title": "Tank testing pressure heads plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 23, "start": "2027-06-07", "end": "2027-06-11", "month": "Jun 2027", "remarks": null}, {"no": 53, "code": "140000", "title": "Watertight integrity plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 23, "start": "2027-06-07", "end": "2027-06-11", "month": "Jun 2027", "remarks": null}, {"no": 54, "code": "152100", "title": "Damage stability booklet", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 23, "start": "2027-06-07", "end": "2027-06-11", "month": "Jun 2027", "remarks": null}, {"no": 55, "code": "513000", "title": "Washing diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 23, "start": "2027-06-07", "end": "2027-06-11", "month": "Jun 2027", "remarks": null}, {"no": 56, "code": "601100", "title": "Short circuit calculation", "discipline": "Electrical", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 23, "start": "2027-06-07", "end": "2027-06-11", "month": "Jun 2027", "remarks": null}, {"no": 57, "code": "100030", "title": "Fire protected areas", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 24, "start": "2027-06-14", "end": "2027-06-18", "month": "Jun 2027", "remarks": null}, {"no": 58, "code": "112000", "title": "Tonnage calculation", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 24, "start": "2027-06-14", "end": "2027-06-18", "month": "Jun 2027", "remarks": null}, {"no": 59, "code": "230000", "title": "Hull appendages plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 24, "start": "2027-06-14", "end": "2027-06-18", "month": "Jun 2027", "remarks": null}, {"no": 60, "code": "463000", "title": "Windscreen arrangement plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 24, "start": "2027-06-14", "end": "2027-06-18", "month": "Jun 2027", "remarks": null}, {"no": 61, "code": "471200", "title": "Elevators arrangement plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 24, "start": "2027-06-14", "end": "2027-06-18", "month": "Jun 2027", "remarks": null}, {"no": 62, "code": "514000", "title": "Soundings and air vents diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 24, "start": "2027-06-14", "end": "2027-06-18", "month": "Jun 2027", "remarks": null}, {"no": 63, "code": "113000", "title": "Equipment number calculation", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 25, "start": "2027-06-21", "end": "2027-06-25", "month": "Jun 2027", "remarks": null}, {"no": 64, "code": "151200", "title": "Trim and stability booklet", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 25, "start": "2027-06-21", "end": "2027-06-25", "month": "Jun 2027", "remarks": null}, {"no": 65, "code": "151300", "title": "Loading conditions", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 25, "start": "2027-06-21", "end": "2027-06-25", "month": "Jun 2027", "remarks": null}, {"no": 66, "code": "302100", "title": "Containers arrangement plan", "discipline": "Cargo", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 25, "start": "2027-06-21", "end": "2027-06-25", "month": "Jun 2027", "remarks": null}, {"no": 67, "code": "450000", "title": "Stairs arrangement plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 25, "start": "2027-06-21", "end": "2027-06-25", "month": "Jun 2027", "remarks": null}, {"no": 68, "code": "101100", "title": "Technical specification", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 26, "start": "2027-06-28", "end": "2027-07-02", "month": "Jun 2027", "remarks": null}, {"no": 69, "code": "101200", "title": "Maker list", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 26, "start": "2027-06-28", "end": "2027-07-02", "month": "Jun 2027", "remarks": null}, {"no": 70, "code": "480000", "title": "Mast lamps/radars plans", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 26, "start": "2027-06-28", "end": "2027-07-02", "month": "Jun 2027", "remarks": null}, {"no": 71, "code": "520000", "title": "Fuel oil diagrams", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 26, "start": "2027-06-28", "end": "2027-07-02", "month": "Jun 2027", "remarks": null}, {"no": 72, "code": "524000", "title": "Exhaust lines diagrams", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 26, "start": "2027-06-28", "end": "2027-07-02", "month": "Jun 2027", "remarks": null}, {"no": 73, "code": "253000", "title": "Plugs arrangement plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 27, "start": "2027-07-05", "end": "2027-07-09", "month": "Jul 2027", "remarks": null}, {"no": 74, "code": "302130", "title": "Containers lifting arrangement plan", "discipline": "Cargo", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 27, "start": "2027-07-05", "end": "2027-07-09", "month": "Jul 2027", "remarks": null}, {"no": 75, "code": "453000", "title": "Ladders arrangement plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 27, "start": "2027-07-05", "end": "2027-07-09", "month": "Jul 2027", "remarks": null}, {"no": 76, "code": "472000", "title": "Cranes arrangement plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 27, "start": "2027-07-05", "end": "2027-07-09", "month": "Jul 2027", "remarks": null}, {"no": 77, "code": "521000", "title": "Lube oil diagrams", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 27, "start": "2027-07-05", "end": "2027-07-09", "month": "Jul 2027", "remarks": null}, {"no": 78, "code": "100122", "title": "Navigation bridge visibility", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 28, "start": "2027-07-12", "end": "2027-07-16", "month": "Jul 2027", "remarks": null}, {"no": 79, "code": "235000", "title": "Bilge keel arrangement", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 28, "start": "2027-07-12", "end": "2027-07-16", "month": "Jul 2027", "remarks": null}, {"no": 80, "code": "411000", "title": "Aft mooring plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 28, "start": "2027-07-12", "end": "2027-07-16", "month": "Jul 2027", "remarks": null}, {"no": 81, "code": "461000", "title": "Handrails arrangement plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 28, "start": "2027-07-12", "end": "2027-07-16", "month": "Jul 2027", "remarks": null}, {"no": 82, "code": "522000", "title": "Sea water cooling diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 28, "start": "2027-07-12", "end": "2027-07-16", "month": "Jul 2027", "remarks": null}, {"no": 83, "code": "100300", "title": "Cargo general layout plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 29, "start": "2027-07-19", "end": "2027-07-23", "month": "Jul 2027", "remarks": null}, {"no": 84, "code": "171000", "title": "Escape plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 29, "start": "2027-07-19", "end": "2027-07-23", "month": "Jul 2027", "remarks": null}, {"no": 85, "code": "235100", "title": "Bilge keel structural plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 29, "start": "2027-07-19", "end": "2027-07-23", "month": "Jul 2027", "remarks": null}, {"no": 86, "code": "261000", "title": "Fender arrangement plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 29, "start": "2027-07-19", "end": "2027-07-23", "month": "Jul 2027", "remarks": null}, {"no": 87, "code": "522100", "title": "Fresh water cooling diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 29, "start": "2027-07-19", "end": "2027-07-23", "month": "Jul 2027", "remarks": null}, {"no": 88, "code": "115110", "title": "Freeing ports calculation", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 30, "start": "2027-07-26", "end": "2027-07-30", "month": "Jul 2027", "remarks": null}, {"no": 89, "code": "412000", "title": "Fore mooring plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 30, "start": "2027-07-26", "end": "2027-07-30", "month": "Jul 2027", "remarks": null}, {"no": 90, "code": "523000", "title": "Compressed air diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 30, "start": "2027-07-26", "end": "2027-07-30", "month": "Jul 2027", "remarks": null}, {"no": 91, "code": "171110", "title": "Evacuation analysis", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 31, "start": "2027-08-02", "end": "2027-08-06", "month": "Aug 2027", "remarks": null}, {"no": 92, "code": "400000", "title": "Docking plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 31, "start": "2027-08-02", "end": "2027-08-06", "month": "Aug 2027", "remarks": null}, {"no": 93, "code": "541000", "title": "Fire main & deck washing system diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 31, "start": "2027-08-02", "end": "2027-08-06", "month": "Aug 2027", "remarks": null}, {"no": 94, "code": "173000", "title": "Low location lighting plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 32, "start": "2027-08-09", "end": "2027-08-13", "month": "Aug 2027", "remarks": null}, {"no": 95, "code": "234100", "title": "Shaft-pipe and bossings arrangement plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 32, "start": "2027-08-09", "end": "2027-08-13", "month": "Aug 2027", "remarks": null}, {"no": 96, "code": "530000", "title": "Sanitary water system diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 32, "start": "2027-08-09", "end": "2027-08-13", "month": "Aug 2027", "remarks": null}, {"no": 97, "code": "530100", "title": "Sanitary hot water system diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 32, "start": "2027-08-09", "end": "2027-08-13", "month": "Aug 2027", "remarks": null}, {"no": 98, "code": "172100", "title": "Portable fire outfit plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 33, "start": "2027-08-16", "end": "2027-08-20", "month": "Aug 2027", "remarks": null}, {"no": 99, "code": "221000", "title": "Structural plan outside E.R.", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 33, "start": "2027-08-16", "end": "2027-08-20", "month": "Aug 2027", "remarks": null}, {"no": 100, "code": "420000", "title": "Life saving appliances plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 33, "start": "2027-08-16", "end": "2027-08-20", "month": "Aug 2027", "remarks": null}, {"no": 101, "code": "531100", "title": "Grey water system diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 33, "start": "2027-08-16", "end": "2027-08-20", "month": "Aug 2027", "remarks": null}, {"no": 102, "code": "100520", "title": "WAPS arrangement plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 34, "start": "2027-08-23", "end": "2027-08-27", "month": "Aug 2027", "remarks": null}, {"no": 103, "code": "170000", "title": "Safety plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 34, "start": "2027-08-23", "end": "2027-08-27", "month": "Aug 2027", "remarks": null}, {"no": 104, "code": "441000", "title": "Structural fire protection plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 34, "start": "2027-08-23", "end": "2027-08-27", "month": "Aug 2027", "remarks": null}, {"no": 105, "code": "531200", "title": "Black water system diagram", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 34, "start": "2027-08-23", "end": "2027-08-27", "month": "Aug 2027", "remarks": null}, {"no": 106, "code": "222000", "title": "Aft structural plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 35, "start": "2027-08-30", "end": "2027-09-03", "month": "Aug 2027", "remarks": null}, {"no": 107, "code": "430100", "title": "Fire doors plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 35, "start": "2027-08-30", "end": "2027-09-03", "month": "Aug 2027", "remarks": null}, {"no": 108, "code": "431000", "title": "Internal doors plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 35, "start": "2027-08-30", "end": "2027-09-03", "month": "Aug 2027", "remarks": null}, {"no": 109, "code": "542000", "title": "Sprinkler system diagrams", "discipline": "Machinery systems", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 35, "start": "2027-08-30", "end": "2027-09-03", "month": "Aug 2027", "remarks": null}, {"no": 110, "code": "165100", "title": "EEDI Technical File at design stage", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "2 of 2", "week": 36, "start": "2027-09-06", "end": "2027-09-10", "month": "Sep 2027", "remarks": null}, {"no": 111, "code": "231000", "title": "Rudder arrangement plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 36, "start": "2027-09-06", "end": "2027-09-10", "month": "Sep 2027", "remarks": null}, {"no": 112, "code": "231200", "title": "Headbox rudder structural plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 36, "start": "2027-09-06", "end": "2027-09-10", "month": "Sep 2027", "remarks": null}, {"no": 113, "code": "433000", "title": "Watertight doors plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 36, "start": "2027-09-06", "end": "2027-09-10", "month": "Sep 2027", "remarks": null}, {"no": 114, "code": "434000", "title": "Shell doors plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 36, "start": "2027-09-06", "end": "2027-09-10", "month": "Sep 2027", "remarks": null}, {"no": 115, "code": "223000", "title": "Fore structural plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 37, "start": "2027-09-13", "end": "2027-09-17", "month": "Sep 2027", "remarks": null}, {"no": 116, "code": "232100", "title": "Skeg structural plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 37, "start": "2027-09-13", "end": "2027-09-17", "month": "Sep 2027", "remarks": null}, {"no": 117, "code": "432000", "title": "External doors plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 37, "start": "2027-09-13", "end": "2027-09-17", "month": "Sep 2027", "remarks": null}, {"no": 118, "code": "442000", "title": "Insulation plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 37, "start": "2027-09-13", "end": "2027-09-17", "month": "Sep 2027", "remarks": null}, {"no": 119, "code": "173300", "title": "Helideck / winch only layout plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 38, "start": "2027-09-20", "end": "2027-09-24", "month": "Sep 2027", "remarks": null}, {"no": 120, "code": "175100", "title": "Navigation lights plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 38, "start": "2027-09-20", "end": "2027-09-24", "month": "Sep 2027", "remarks": null}, {"no": 121, "code": "435000", "title": "Windows plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 38, "start": "2027-09-20", "end": "2027-09-24", "month": "Sep 2027", "remarks": null}, {"no": 122, "code": "174000", "title": "Hazardous plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 39, "start": "2027-09-27", "end": "2027-10-01", "month": "Sep 2027", "remarks": null}, {"no": 123, "code": "225000", "title": "Superstructures structural plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 39, "start": "2027-09-27", "end": "2027-10-01", "month": "Sep 2027", "remarks": null}, {"no": 124, "code": "438000", "title": "Manholes plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 39, "start": "2027-09-27", "end": "2027-10-01", "month": "Sep 2027", "remarks": null}, {"no": 125, "code": "200030", "title": "Welding booklet", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 40, "start": "2027-10-04", "end": "2027-10-08", "month": "Oct 2027", "remarks": null}, {"no": 126, "code": "436000", "title": "Hatches plan", "discipline": "Outfitting", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 40, "start": "2027-10-04", "end": "2027-10-08", "month": "Oct 2027", "remarks": null}, {"no": 127, "code": "181000", "title": "External graphic layout of the vessel", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 41, "start": "2027-10-11", "end": "2027-10-15", "month": "Oct 2027", "remarks": null}, {"no": 128, "code": "191140", "title": "Water ballast management plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 41, "start": "2027-10-11", "end": "2027-10-15", "month": "Oct 2027", "remarks": null}, {"no": 129, "code": "224000", "title": "Structural plan inside E.R.", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 41, "start": "2027-10-11", "end": "2027-10-15", "month": "Oct 2027", "remarks": null}, {"no": 130, "code": "131200", "title": "Sounding tables", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 42, "start": "2027-10-18", "end": "2027-10-22", "month": "Oct 2027", "remarks": null}, {"no": 131, "code": "173100", "title": "Orders transmission plan", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 42, "start": "2027-10-18", "end": "2027-10-22", "month": "Oct 2027", "remarks": null}, {"no": 132, "code": "240000", "title": "Main machineries foundations plan", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 42, "start": "2027-10-18", "end": "2027-10-22", "month": "Oct 2027", "remarks": null}, {"no": 133, "code": "191110", "title": "Cargo securing manual", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": 43, "start": "2027-10-25", "end": "2027-10-29", "month": "Oct 2027", "remarks": null}, {"no": 134, "code": "160200", "title": "Power prediction (tank tests)", "discipline": "General & naval architecture", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": null, "start": null, "end": null, "month": "TBD", "remarks": "After towing tank test report"}, {"no": 135, "code": "200090", "title": "Structural 3D model", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": null, "start": null, "end": null, "month": "TBD", "remarks": "With release of pertinent areas"}, {"no": 136, "code": "211010", "title": "FEM analysis", "discipline": "Hull structure", "phase": "B", "phase_name": "Basic", "issue": "1 of 1", "week": null, "start": null, "end": null, "month": "TBD", "remarks": "With release of pertinent areas"}];
+/* ---- Weekly Load sheet: planned cumulative issue count per ISO week of 2027 ---- */
+const WEEKLY_PLAN = [{"week": 1, "start": "2027-01-04", "end": "2027-01-08", "c": 0, "p": 0, "b": 0, "total": 0, "cum": 0, "cumPct": 0}, {"week": 2, "start": "2027-01-11", "end": "2027-01-15", "c": 1, "p": 0, "b": 0, "total": 1, "cum": 1, "cumPct": 0.75}, {"week": 3, "start": "2027-01-18", "end": "2027-01-22", "c": 2, "p": 0, "b": 0, "total": 2, "cum": 3, "cumPct": 2.26}, {"week": 4, "start": "2027-01-25", "end": "2027-01-29", "c": 4, "p": 0, "b": 1, "total": 5, "cum": 8, "cumPct": 6.02}, {"week": 5, "start": "2027-02-01", "end": "2027-02-05", "c": 0, "p": 0, "b": 0, "total": 0, "cum": 8, "cumPct": 6.02}, {"week": 6, "start": "2027-02-08", "end": "2027-02-12", "c": 0, "p": 1, "b": 0, "total": 1, "cum": 9, "cumPct": 6.77}, {"week": 7, "start": "2027-02-15", "end": "2027-02-19", "c": 0, "p": 0, "b": 0, "total": 0, "cum": 9, "cumPct": 6.77}, {"week": 8, "start": "2027-02-22", "end": "2027-02-26", "c": 0, "p": 1, "b": 0, "total": 1, "cum": 10, "cumPct": 7.52}, {"week": 9, "start": "2027-03-01", "end": "2027-03-05", "c": 0, "p": 3, "b": 0, "total": 3, "cum": 13, "cumPct": 9.77}, {"week": 10, "start": "2027-03-08", "end": "2027-03-12", "c": 0, "p": 2, "b": 0, "total": 2, "cum": 15, "cumPct": 11.28}, {"week": 11, "start": "2027-03-15", "end": "2027-03-19", "c": 0, "p": 1, "b": 0, "total": 1, "cum": 16, "cumPct": 12.03}, {"week": 12, "start": "2027-03-22", "end": "2027-03-26", "c": 0, "p": 0, "b": 1, "total": 1, "cum": 17, "cumPct": 12.78}, {"week": 13, "start": "2027-03-29", "end": "2027-04-02", "c": 0, "p": 1, "b": 0, "total": 1, "cum": 18, "cumPct": 13.53}, {"week": 14, "start": "2027-04-05", "end": "2027-04-09", "c": 0, "p": 1, "b": 0, "total": 1, "cum": 19, "cumPct": 14.29}, {"week": 15, "start": "2027-04-12", "end": "2027-04-16", "c": 0, "p": 3, "b": 0, "total": 3, "cum": 22, "cumPct": 16.54}, {"week": 16, "start": "2027-04-19", "end": "2027-04-23", "c": 0, "p": 2, "b": 0, "total": 2, "cum": 24, "cumPct": 18.05}, {"week": 17, "start": "2027-04-26", "end": "2027-04-30", "c": 0, "p": 2, "b": 0, "total": 2, "cum": 26, "cumPct": 19.55}, {"week": 18, "start": "2027-05-03", "end": "2027-05-07", "c": 0, "p": 0, "b": 2, "total": 2, "cum": 28, "cumPct": 21.05}, {"week": 19, "start": "2027-05-10", "end": "2027-05-14", "c": 0, "p": 0, "b": 5, "total": 5, "cum": 33, "cumPct": 24.81}, {"week": 20, "start": "2027-05-17", "end": "2027-05-21", "c": 0, "p": 0, "b": 5, "total": 5, "cum": 38, "cumPct": 28.57}, {"week": 21, "start": "2027-05-24", "end": "2027-05-28", "c": 0, "p": 0, "b": 6, "total": 6, "cum": 44, "cumPct": 33.08}, {"week": 22, "start": "2027-05-31", "end": "2027-06-04", "c": 0, "p": 0, "b": 6, "total": 6, "cum": 50, "cumPct": 37.59}, {"week": 23, "start": "2027-06-07", "end": "2027-06-11", "c": 0, "p": 0, "b": 6, "total": 6, "cum": 56, "cumPct": 42.11}, {"week": 24, "start": "2027-06-14", "end": "2027-06-18", "c": 0, "p": 0, "b": 6, "total": 6, "cum": 62, "cumPct": 46.62}, {"week": 25, "start": "2027-06-21", "end": "2027-06-25", "c": 0, "p": 0, "b": 5, "total": 5, "cum": 67, "cumPct": 50.38}, {"week": 26, "start": "2027-06-28", "end": "2027-07-02", "c": 0, "p": 0, "b": 5, "total": 5, "cum": 72, "cumPct": 54.14}, {"week": 27, "start": "2027-07-05", "end": "2027-07-09", "c": 0, "p": 0, "b": 5, "total": 5, "cum": 77, "cumPct": 57.89}, {"week": 28, "start": "2027-07-12", "end": "2027-07-16", "c": 0, "p": 0, "b": 5, "total": 5, "cum": 82, "cumPct": 61.65}, {"week": 29, "start": "2027-07-19", "end": "2027-07-23", "c": 0, "p": 0, "b": 5, "total": 5, "cum": 87, "cumPct": 65.41}, {"week": 30, "start": "2027-07-26", "end": "2027-07-30", "c": 0, "p": 0, "b": 3, "total": 3, "cum": 90, "cumPct": 67.67}, {"week": 31, "start": "2027-08-02", "end": "2027-08-06", "c": 0, "p": 0, "b": 3, "total": 3, "cum": 93, "cumPct": 69.92}, {"week": 32, "start": "2027-08-09", "end": "2027-08-13", "c": 0, "p": 0, "b": 4, "total": 4, "cum": 97, "cumPct": 72.93}, {"week": 33, "start": "2027-08-16", "end": "2027-08-20", "c": 0, "p": 0, "b": 4, "total": 4, "cum": 101, "cumPct": 75.94}, {"week": 34, "start": "2027-08-23", "end": "2027-08-27", "c": 0, "p": 0, "b": 4, "total": 4, "cum": 105, "cumPct": 78.95}, {"week": 35, "start": "2027-08-30", "end": "2027-09-03", "c": 0, "p": 0, "b": 4, "total": 4, "cum": 109, "cumPct": 81.95}, {"week": 36, "start": "2027-09-06", "end": "2027-09-10", "c": 0, "p": 0, "b": 5, "total": 5, "cum": 114, "cumPct": 85.71}, {"week": 37, "start": "2027-09-13", "end": "2027-09-17", "c": 0, "p": 0, "b": 4, "total": 4, "cum": 118, "cumPct": 88.72}, {"week": 38, "start": "2027-09-20", "end": "2027-09-24", "c": 0, "p": 0, "b": 3, "total": 3, "cum": 121, "cumPct": 90.98}, {"week": 39, "start": "2027-09-27", "end": "2027-10-01", "c": 0, "p": 0, "b": 3, "total": 3, "cum": 124, "cumPct": 93.23}, {"week": 40, "start": "2027-10-04", "end": "2027-10-08", "c": 0, "p": 0, "b": 2, "total": 2, "cum": 126, "cumPct": 94.74}, {"week": 41, "start": "2027-10-11", "end": "2027-10-15", "c": 0, "p": 0, "b": 3, "total": 3, "cum": 129, "cumPct": 96.99}, {"week": 42, "start": "2027-10-18", "end": "2027-10-22", "c": 0, "p": 0, "b": 3, "total": 3, "cum": 132, "cumPct": 99.25}, {"week": 43, "start": "2027-10-25", "end": "2027-10-29", "c": 0, "p": 0, "b": 1, "total": 1, "cum": 133, "cumPct": 100}];
+
+const SCH_PHASE_CFG = {
+  C: { label:'Conceptual',  bg:PHASES.concept.bg,     tc:PHASES.concept.tc },
+  P: { label:'Preliminary', bg:PHASES.preliminary.bg, tc:PHASES.preliminary.tc },
+  B: { label:'Basic',       bg:PHASES.contract.bg,    tc:PHASES.contract.tc }
+};
+
+/* ---- Received tracking (persisted) ---- */
+function getReceived() {
+  try { const s = localStorage.getItem('sd_p445_received'); return s ? JSON.parse(s) : {}; } catch(e) { return {}; }
+}
+function saveReceived(r) { try { localStorage.setItem('sd_p445_received', JSON.stringify(r)); } catch(e) {} }
+function toggleReceived(no) {
+  const r = getReceived();
+  r[no] = !r[no];
+  saveReceived(r);
+  renderTable();
+  renderSCurve();
+  renderStats();
+}
+
+let schPhase = 'all';
+
+function setPhase(p, btn) {
+  schPhase = p;
+  document.querySelectorAll('.sch-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+(function initDisciplines(){
+  const sel = document.getElementById('sch-discipline');
+  const disciplines = [...new Set(SCHEDULE_DATA.map(r=>r.discipline))].sort();
+  disciplines.forEach(d=>{
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d;
+    sel.appendChild(o);
+  });
+})();
+
+function renderStats() {
+  const received = getReceived();
+  const total   = SCHEDULE_DATA.length;
+  const dated   = SCHEDULE_DATA.filter(r=>r.week).length;
+  const undated = total - dated;
+  const done    = SCHEDULE_DATA.filter(r=>received[r.no]).length;
+  const byPhase = { C:0, P:0, B:0 };
+  SCHEDULE_DATA.forEach(r=>{ if(byPhase[r.phase]!==undefined) byPhase[r.phase]++; });
+
+  document.getElementById('sch-stats').innerHTML = `
+    <div class="sch-stat"><div class="sch-stat-num">${total}</div><div class="sch-stat-lbl">Total dokumen</div></div>
+    <div class="sch-stat"><div class="sch-stat-num" style="color:${PHASES.concept.color}">${byPhase.C}</div><div class="sch-stat-lbl">Conceptual</div></div>
+    <div class="sch-stat"><div class="sch-stat-num" style="color:${PHASES.preliminary.color}">${byPhase.P}</div><div class="sch-stat-lbl">Preliminary</div></div>
+    <div class="sch-stat"><div class="sch-stat-num" style="color:${PHASES.contract.color}">${byPhase.B}</div><div class="sch-stat-lbl">Basic</div></div>
+    <div class="sch-stat"><div class="sch-stat-num">${dated}</div><div class="sch-stat-lbl">Terjadwal (dated)</div></div>
+    <div class="sch-stat"><div class="sch-stat-num" style="color:var(--green-600)">${done}/${total}</div><div class="sch-stat-lbl">Diterima (capaian)</div></div>`;
+}
+
+let sortKey = 'no', sortDir = 1;
+function sortBy(key) {
+  if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+  renderTable();
+}
+document.querySelectorAll('.sch-table thead th[data-key]').forEach(th=>{
+  th.onclick = () => sortBy(th.dataset.key);
+});
+
+function renderTable() {
+  const q        = document.getElementById('sch-search').value.trim().toLowerCase();
+  const disc     = document.getElementById('sch-discipline').value;
+  const received = getReceived();
+
+  let rows = SCHEDULE_DATA.filter(r => {
+    if (schPhase !== 'all' && r.phase !== schPhase) return false;
+    if (disc !== 'all' && r.discipline !== disc) return false;
+    if (q && !(r.title.toLowerCase().includes(q) || String(r.code).toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  rows = [...rows].sort((a,b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (av == null) av = '';
+    if (bv == null) bv = '';
+    if (typeof av === 'number' && typeof bv === 'number') return (av-bv)*sortDir;
+    return String(av).localeCompare(String(bv)) * sortDir;
+  });
+
+  document.querySelectorAll('.sch-table thead th[data-key]').forEach(th=>{
+    th.classList.toggle('sorted', th.dataset.key===sortKey);
+  });
+
+  const tbody = document.getElementById('sch-tbody');
+  document.getElementById('sch-count').textContent = `${rows.length} / ${SCHEDULE_DATA.length} dokumen`;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="10"><div class="sch-empty">Tidak ada dokumen yang cocok dengan filter.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const ph = SCH_PHASE_CFG[r.phase] || { label:r.phase_name, bg:'var(--bg-secondary)', tc:'var(--text-tertiary)' };
+    const isRecv = !!received[r.no];
+    return `<tr class="${isRecv?'received':''}">
+      <td><input type="checkbox" class="sch-recv-chk" ${isRecv?'checked':''} title="Tandai diterima" onchange="toggleReceived(${r.no})"></td>
+      <td class="sch-nowrap">${r.no}</td>
+      <td class="sch-code">${r.code}</td>
+      <td>
+        <div class="sch-title">${r.title}</div>
+        ${r.remarks ? `<div class="sch-sub">${r.remarks}</div>` : ''}
+      </td>
+      <td>${r.discipline}</td>
+      <td><span class="sch-ph" style="background:${ph.bg};color:${ph.tc}">${ph.label}</span></td>
+      <td class="sch-nowrap">${r.issue}</td>
+      <td class="sch-nowrap">${r.week ?? '—'}</td>
+      <td class="sch-nowrap">${r.start || '<span style="color:var(--text-tertiary)">TBD</span>'}</td>
+      <td class="sch-nowrap">${r.end || '<span style="color:var(--text-tertiary)">TBD</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ================================================================
+   S-CURVE — cumulative planned vs actual % by ISO week
+   ================================================================ */
+function buildActualSeries() {
+  const received = getReceived();
+  /* cumulative actual count, credited to each document's own planned week
+     (undated / unreceived documents never contribute) */
+  const countByWeek = {};
+  SCHEDULE_DATA.forEach(r => {
+    if (received[r.no] && r.week) countByWeek[r.week] = (countByWeek[r.week]||0) + 1;
+  });
+  let running = 0;
+  const totalDocs = SCHEDULE_DATA.length;
+  return WEEKLY_PLAN.map(w => {
+    running += countByWeek[w.week] || 0;
+    return { week:w.week, start:w.start, end:w.end, cum:running, pct: totalDocs ? (running/totalDocs*100) : 0 };
+  });
+}
+
+function fmtDateShort(iso) {
+  if (!iso) return '';
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short'});
+}
+
+function renderSCurve() {
+  const wrap = document.getElementById('scurve-svg-wrap');
+  const W = Math.max(wrap.clientWidth || 860, 320);
+  const H = 240;
+  const padL = 34, padR = 14, padT = 14, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  const planned = WEEKLY_PLAN;
+  const actual  = buildActualSeries();
+  const n = planned.length;
+
+  const x = i => padL + (plotW * i / (n-1));
+  const y = pct => padT + plotH - (plotH * pct/100);
+
+  const linePath = series => series.map((p,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(p.pct ?? p.cumPct).toFixed(1)}`).join(' ');
+  const areaPath = series => linePath(series) + ` L${x(n-1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`;
+
+  /* gridlines at 0/25/50/75/100% */
+  const grid = [0,25,50,75,100].map(v => `
+    <line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W-padR}" y2="${y(v).toFixed(1)}" stroke="var(--grid-line)" stroke-width="1"/>
+    <text x="${padL-8}" y="${(y(v)+3).toFixed(1)}" font-size="10" fill="var(--text-muted)" text-anchor="end">${v}%</text>`).join('');
+
+  /* month ticks: first week of each shown month */
+  const monthTicks = [];
+  let lastMonth = null;
+  planned.forEach((w,i) => {
+    const m = w.start ? w.start.slice(0,7) : null;
+    if (m && m !== lastMonth) { monthTicks.push({i, label: fmtDateShort(w.start)}); lastMonth = m; }
+  });
+  const xAxis = monthTicks.map(t => `<text x="${x(t.i).toFixed(1)}" y="${H-8}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${t.label}</text>`).join('');
+
+  const planPct = planned.map(w=>w.cumPct);
+  const actPct  = actual.map(a=>a.pct);
+
+  const hitDots = planned.map((w,i) => `<circle class="sc-hit" data-i="${i}" cx="${x(i).toFixed(1)}" cy="${y(planPct[i]).toFixed(1)}" r="12" fill="transparent"/>`).join('');
+
+  wrap.innerHTML = `
+    <svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" id="sc-svg" style="display:block;overflow:visible">
+      ${grid}
+      <line x1="${padL}" y1="${y(0)}" x2="${W-padR}" y2="${y(0)}" stroke="var(--baseline)" stroke-width="1"/>
+      ${xAxis}
+      <path d="${areaPath(planned.map((w,i)=>({pct:planPct[i]})))}" fill="var(--series-plan)" opacity="0.08" stroke="none"/>
+      <path d="${linePath(planned.map((w,i)=>({pct:planPct[i]})))}" fill="none" stroke="var(--series-plan)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="${linePath(actual.map(a=>({pct:a.pct})))}" fill="none" stroke="var(--series-act)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(n-1)}" cy="${y(planPct[n-1])}" r="4" fill="var(--series-plan)" stroke="var(--surface-1)" stroke-width="2"/>
+      <circle cx="${x(n-1)}" cy="${y(actPct[n-1])}" r="4" fill="var(--series-act)" stroke="var(--surface-1)" stroke-width="2"/>
+      <line id="sc-crosshair" x1="0" y1="${padT}" x2="0" y2="${H-padB}" stroke="var(--baseline)" stroke-width="1" opacity="0"/>
+      <g id="sc-hits">${hitDots}</g>
+    </svg>
+    <div class="scurve-tooltip" id="sc-tooltip"></div>`;
+
+  const svg = document.getElementById('sc-svg');
+  const crosshair = document.getElementById('sc-crosshair');
+  const tooltip = document.getElementById('sc-tooltip');
+
+  function showAt(i) {
+    const w = planned[i]; const a = actual[i];
+    crosshair.setAttribute('x1', x(i)); crosshair.setAttribute('x2', x(i)); crosshair.setAttribute('opacity','1');
+    tooltip.innerHTML = '';
+    const dateEl = document.createElement('div'); dateEl.className='scurve-tt-date';
+    dateEl.textContent = `Minggu ${w.week} · ${fmtDateShort(w.start)}–${fmtDateShort(w.end)}`;
+    tooltip.appendChild(dateEl);
+    [['Rencana','var(--series-plan)', w.cumPct, w.cum], ['Aktual','var(--series-act)', a.pct, a.cum]].forEach(([name,color,pct,cum])=>{
+      const row = document.createElement('div'); row.className='scurve-tt-row';
+      const key = document.createElement('span'); key.className='scurve-tt-key'; key.style.background=color;
+      const nameEl = document.createElement('span'); nameEl.className='scurve-tt-name'; nameEl.textContent = name;
+      const val = document.createElement('span'); val.className='scurve-tt-val'; val.textContent = `${pct.toFixed(1)}% (${cum})`;
+      row.appendChild(key); row.appendChild(nameEl); row.appendChild(val);
+      tooltip.appendChild(row);
+    });
+    const left = (x(i)/W)*wrap.clientWidth;
+    tooltip.style.left = left+'px';
+    tooltip.style.top = (y(Math.max(w.cumPct,a.pct))/H*H)+'px';
+    tooltip.classList.add('show');
+  }
+  function hide() { crosshair.setAttribute('opacity','0'); tooltip.classList.remove('show'); }
+
+  svg.querySelectorAll('.sc-hit').forEach(dot => {
+    const i = +dot.dataset.i;
+    dot.addEventListener('pointerenter', ()=>showAt(i));
+    dot.addEventListener('focus', ()=>showAt(i));
+    dot.setAttribute('tabindex','0');
+  });
+  svg.addEventListener('pointerleave', hide);
+
+  /* hero number */
+  const hero = document.getElementById('sc-hero-num');
+  const curActPct = actPct[n-1];
+  const curPlanPct = planPct[n-1];
+  hero.textContent = curActPct.toFixed(1)+'%';
+  const delta = document.getElementById('sc-hero-delta');
+  const diff = curActPct - curPlanPct;
+  if (Math.abs(diff) < 0.05) {
+    delta.textContent = 'Sesuai rencana';
+    delta.style.color = 'var(--text-muted)';
+  } else if (diff > 0) {
+    delta.textContent = `+${diff.toFixed(1)}% di atas rencana`;
+    delta.style.color = 'var(--green-600)';
+  } else {
+    delta.textContent = `${diff.toFixed(1)}% di bawah rencana`;
+    delta.style.color = 'var(--red-800)';
+  }
+}
+
+window.addEventListener('resize', renderSCurve);
+
+renderStats();
+renderTable();
+renderSCurve();
+</script>
+</body>
+</html>

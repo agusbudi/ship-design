@@ -150,14 +150,16 @@ function makeApproval(status, seed) {
     { by:'Ahmad Taufik', time:'2 hari lalu' },{ by:'Sari Dewi',   time:'1 hari lalu' },
     { by:'Dewi Rahayu',  time:'18 jam lalu' },{ by:'Ir. Santoso', time:'12 jam lalu' }
   ];
+  let pendingSince = new Date(Date.now() - ((seed*37)%9+1)*86400000).toISOString();
   if (status === 'done') {
     steps.forEach((s,i) => { s.approved=true; s.by=approvers[i].by; s.time=approvers[i].time; });
+    pendingSince = null;
   } else if (status === 'in-progress') {
     const n = seed % 3;
     if (n >= 1) { steps[0].approved=true; steps[0].by=approvers[0].by; steps[0].time='3 jam lalu'; }
     if (n >= 2) { steps[1].approved=true; steps[1].by=approvers[1].by; steps[1].time='1 jam lalu'; }
   }
-  return { steps };
+  return { steps, pendingSince };
 }
 
 function buildTasks() {
@@ -192,13 +194,15 @@ function doApprove(tasks, taskId, note) {
   if (!canApproveStep(steps[ni].role)) return false;
   const u = getCurrentUser();
   steps[ni].approved = true; steps[ni].by = u.name; steps[ni].time = 'Baru saja'; steps[ni].note = note||'';
-  if (steps.every(s => s.approved)) t.status = 'done';
+  if (steps.every(s => s.approved)) { t.status = 'done'; t.approval.pendingSince = null; }
+  else { t.approval.pendingSince = new Date().toISOString(); }
   saveTasks(tasks); return true;
 }
 
 function doReject(tasks, taskId, note) {
   const t = tasks.find(t => t.id == taskId); if (!t) return false;
   t.approval.steps.forEach(s => { s.approved=false; s.by=null; s.time=null; s.note=''; });
+  t.approval.pendingSince = new Date().toISOString();
   t.status = 'in-progress';
   const u = getCurrentUser();
   const c = getComments(); if (!c[taskId]) c[taskId]=[];
@@ -214,6 +218,7 @@ function addDeliverable(tasks, label, phase, cat) {
   const t = { id:Date.now(), phase, cat, label, status:'todo',
     approval:makeApproval('todo',0), custom:true, addedBy:u.name,
     addedAt:new Date().toLocaleDateString('id-ID') };
+  t.approval.pendingSince = new Date().toISOString();
   tasks.push(t); saveTasks(tasks); return t;
 }
 
@@ -281,7 +286,8 @@ function approvalActionsHtml(task) {
 /* ---- Shared shell ---- */
 function renderShell(activePage) {
   const pages=[
-    {id:'tree',  href:'tree.html',      label:'Hierarchy tree', icon:treeIcon()},
+    {id:'tree',     href:'tree.html',     label:'Hierarchy tree',  icon:treeIcon()},
+    {id:'schedule', href:'schedule.html', label:'P445 Schedule',   icon:scheduleIcon()},
     {id:'gantt', href:'gantt.html',      label:'Gantt chart',    icon:ganttIcon()},
     {id:'kanban',href:'kanban.html',     label:'Kanban board',   icon:kanbanIcon()},
     {id:'dash',  href:'dashboard.html',  label:'Dashboard',      icon:dashIcon()}
@@ -292,6 +298,7 @@ function renderShell(activePage) {
     <div class="logo-box"><svg viewBox="0 0 18 18" fill="none"><path d="M9 2L2 6v6l7 4 7-4V6L9 2z" stroke="#fff" stroke-width="1.4"/><path d="M9 7v4M6.5 8.5l2.5 2.5 2.5-2.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg></div>
     <span class="logo-name">ShipDesign</span><span class="logo-sub">/ KRI Nusantara — Basic Design</span>
     <div class="topbar-right">
+      ${notifWidgetHtml()}
       <div class="user-pill" id="user-pill" onclick="toggleUserMenu()">
         <div class="av" style="background:${r.color};color:${r.tc}">${u.initials}</div>
         <div style="display:flex;flex-direction:column;gap:1px">
@@ -320,6 +327,142 @@ function renderShell(activePage) {
 }
 function closeShell() { return `</div></div></div>`; }
 
+/* ================================================================
+   Notifications — triggered by being assigned as reviewer/approver
+   ================================================================
+   A deliverable "assigns" whoever can act on its next pending approval
+   step (canApproveStep). The moment that step becomes current — on
+   creation, or right after the previous step is approved/rejected —
+   it starts showing up here for every role able to act on it, until
+   approved. The H- setting only controls when a still-pending item
+   gets flagged "Mendesak" (urgent), not whether it shows up at all. */
+const REMINDER_DEFAULT_H = 3;
+
+function getReminderSettings() {
+  try { const s = localStorage.getItem('sd_reminder_settings'); if (s) return JSON.parse(s); } catch(e) {}
+  return { hDays: REMINDER_DEFAULT_H };
+}
+function saveReminderSettings(cfg) { try { localStorage.setItem('sd_reminder_settings', JSON.stringify(cfg)); } catch(e) {} }
+
+/* tasks currently awaiting action from the logged-in user, as reviewer/approver */
+function getReviewNotifications() {
+  const tasks = getTasks();
+  const list = [];
+  tasks.forEach(t => {
+    if (!t.approval) return;
+    const steps = t.approval.steps;
+    const ni = steps.findIndex(s => !s.approved);
+    if (ni === -1) return;                     // fully approved — nothing pending
+    const stepRole = steps[ni].role;
+    if (!canApproveStep(stepRole)) return;      // not assigned to the current user's role
+    const since = t.approval.pendingSince ? new Date(t.approval.pendingSince) : null;
+    const daysPending = since ? Math.max(0, Math.floor((Date.now()-since.getTime())/86400000)) : 0;
+    list.push({ task:t, stepIdx:ni, stepRole, daysPending });
+  });
+  list.sort((a,b) => b.daysPending - a.daysPending);
+  return list;
+}
+function getActiveReminderCount() { return getReviewNotifications().length; }
+
+/* link to a task's detail, correct whether called from / or /pages/ */
+function treeHref(taskId) {
+  const inPages = location.pathname.replace(/\\/g,'/').includes('/pages/');
+  return (inPages ? 'tree.html' : 'pages/tree.html') + '?taskId=' + taskId;
+}
+
+let notifShowSettings = false;
+function notifGearIcon() { return `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 10.2a2.2 2.2 0 100-4.4 2.2 2.2 0 000 4.4z" stroke="currentColor" stroke-width="1.2"/><path d="M12.9 8.9c.04-.3.06-.59.06-.9s-.02-.6-.06-.9l1.2-.95a.5.5 0 00.12-.63l-1.14-1.97a.5.5 0 00-.6-.22l-1.42.57a4.9 4.9 0 00-1.55-.9l-.22-1.5a.5.5 0 00-.49-.4H6.2a.5.5 0 00-.49.4l-.22 1.5c-.57.22-1.1.52-1.55.9l-1.42-.57a.5.5 0 00-.6.22L.78 5.47a.5.5 0 00.12.63l1.2.95c-.04.3-.06.6-.06.9s.02.6.06.9l-1.2.95a.5.5 0 00-.12.63l1.14 1.97c.13.22.39.31.6.22l1.42-.57c.45.38.98.68 1.55.9l.22 1.5c.04.25.25.4.49.4h2.28c.24 0 .45-.15.49-.4l.22-1.5c.57-.22 1.1-.52 1.55-.9l1.42.57c.21.09.47 0 .6-.22l1.14-1.97a.5.5 0 00-.12-.63l-1.2-.95z" stroke="currentColor" stroke-width="1.1"/></svg>`; }
+function notifBellIcon() { return `<svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M9 2.5c-2.2 0-4 1.8-4 4v2.3c0 .5-.2 1-.5 1.4L3 11.8c-.5.6-.1 1.5.6 1.5h10.8c.7 0 1.1-.9.6-1.5l-1.5-1.6c-.3-.4-.5-.9-.5-1.4V6.5c0-2.2-1.8-4-4-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7.2 14.5a1.8 1.8 0 003.6 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`; }
+
+function notifBodyHtml() {
+  const cfg = getReminderSettings();
+  const me  = getCurrentUser(); const mr = ROLES[me.role];
+
+  if (notifShowSettings) {
+    return `<div class="notif-hd"><span class="menu-label" style="padding:0">Pengaturan notifikasi</span>
+        <button class="notif-gear" onclick="toggleNotifSettings()" title="Kembali">&#x2715;</button>
+      </div>
+      <div class="notif-settings">
+        <label>Tandai "Mendesak" jika sudah menunggu review/approval lebih dari H hari</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:13px;color:var(--text-secondary)">H-</span>
+          <input type="number" id="notif-h-input" min="0" max="60" value="${cfg.hDays}">
+          <button class="btn btn-blue" style="padding:6px 12px" onclick="submitHSetting()">Simpan</button>
+        </div>
+        <p class="notif-settings-note">Berlaku untuk semua notifikasi review &amp; approval, di semua fase dan role.</p>
+      </div>`;
+  }
+
+  const list = getReviewNotifications();
+  return `<div class="notif-hd">
+      <span class="menu-label" style="padding:0">Perlu review/approval Anda</span>
+      <button class="notif-gear" onclick="toggleNotifSettings()" title="Pengaturan notifikasi">${notifGearIcon()}</button>
+    </div>
+    <div class="notif-list">
+      ${list.length ? list.map(n => {
+        const ph = PHASES[n.task.phase];
+        const stepLabel = APPROVAL_STEPS[n.stepIdx].label;
+        const urgent = n.daysPending >= cfg.hDays;
+        return `<a class="notif-item" href="${treeHref(n.task.id)}" style="text-decoration:none;color:inherit">
+          <div class="notif-item-main">
+            <div class="notif-item-title">${n.task.label}</div>
+            <div class="notif-item-sub">
+              <span style="color:${ph.color}">&#9679;</span> ${ph.label} &middot; ${stepLabel}
+            </div>
+          </div>
+          <span class="chip ${urgent?'chip-late':'chip-prog'}">${n.daysPending<=0?'Baru':'Menunggu '+n.daysPending+' hari'}</span>
+        </a>`;
+      }).join('') : `<div class="notif-empty">Tidak ada dokumen yang menunggu review/approval Anda saat ini.</div>`}
+    </div>
+    <p style="font-size:11px;color:var(--text-tertiary);padding:8px 12px 2px">Masuk sebagai ${me.name} &middot; ${mr.label}</p>`;
+}
+
+function notifWidgetHtml() {
+  const count = getActiveReminderCount();
+  return `<div style="position:relative">
+    <div class="notif-bell" id="notif-bell" onclick="toggleNotifMenu()" title="Notifikasi review & approval">
+      ${notifBellIcon()}
+      ${count>0?`<span class="notif-badge">${count>9?'9+':count}</span>`:''}
+    </div>
+    <div class="notif-menu" id="notif-menu">
+      <div id="notif-body">${notifBodyHtml()}</div>
+    </div>
+  </div>`;
+}
+
+function toggleNotifMenu() {
+  const m = document.getElementById('notif-menu');
+  if (!m) return;
+  const willOpen = !m.classList.contains('open');
+  document.querySelectorAll('.user-menu.open').forEach(x=>x.classList.remove('open'));
+  if (!willOpen) notifShowSettings = false;
+  m.classList.toggle('open', willOpen);
+  if (willOpen) refreshNotifWidget();
+}
+function toggleNotifSettings() { notifShowSettings = !notifShowSettings; refreshNotifWidget(); }
+
+function refreshNotifWidget() {
+  const body = document.getElementById('notif-body');
+  if (body) body.innerHTML = notifBodyHtml();
+  const bell = document.getElementById('notif-bell');
+  if (bell) {
+    const existing = bell.querySelector('.notif-badge');
+    const count = getActiveReminderCount();
+    if (count > 0) {
+      if (existing) existing.textContent = count>9?'9+':count;
+      else bell.insertAdjacentHTML('beforeend', `<span class="notif-badge">${count>9?'9+':count}</span>`);
+    } else if (existing) existing.remove();
+  }
+}
+
+function submitHSetting() {
+  const v = parseInt((document.getElementById('notif-h-input')||{}).value, 10);
+  if (isNaN(v) || v<0) return;
+  saveReminderSettings({ hDays: v });
+  notifShowSettings = false;
+  refreshNotifWidget();
+}
+
 function switchUser(id) {
   const m = TEAM_MEMBERS.find(m=>m.id===id); if(!m) return;
   setCurrentUser(m); location.reload();
@@ -332,10 +475,15 @@ if (typeof document !== 'undefined') {
     const pill = document.getElementById('user-pill');
     const menu = document.getElementById('user-menu');
     if (pill && menu && !pill.contains(e.target) && !menu.contains(e.target)) menu.classList.remove('open');
+
+    const bell = document.getElementById('notif-bell');
+    const nmenu = document.getElementById('notif-menu');
+    if (bell && nmenu && !bell.contains(e.target) && !nmenu.contains(e.target)) nmenu.classList.remove('open');
   });
 }
 
 function treeIcon()   { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="5" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="11" width="5" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="10" y="6.5" width="5" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5h2.5V8H6M8.5 8H10M6 12.5h2.5V8" stroke="currentColor" stroke-width="1.2"/></svg>`; }
+function scheduleIcon() { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="1.3" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M4 9h2.3M4 11.3h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`; }
 function ganttIcon()  { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="8" height="2.5" rx="1" fill="currentColor" opacity=".4"/><rect x="4" y="6.8" width="10" height="2.5" rx="1" fill="currentColor" opacity=".6"/><rect x="2" y="10.5" width="6" height="2.5" rx="1" fill="currentColor" opacity=".4"/></svg>`; }
 function kanbanIcon() { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6" y="2" width="4" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="2" width="4" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>`; }
 function dashIcon()   { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>`; }

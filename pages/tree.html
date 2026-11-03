@@ -345,6 +345,20 @@ function submitAdd() {
 }
 
 renderTree();
+
+/* deep-link from a notification: ?taskId=<id> expands to and opens that task */
+(function openFromQuery(){
+  const qid = new URLSearchParams(location.search).get('taskId');
+  if (!qid) return;
+  const t = tasks.find(t => String(t.id) === String(qid));
+  if (!t) return;
+  treeState['ph_'+t.phase] = true;
+  treeState[t.phase+'_'+t.cat] = true;
+  renderTree();
+  openDetail(t);
+  const row = document.querySelector('.tree-row.selected');
+  if (row) row.scrollIntoView({ block:'center' });
+})();
 </script>
 </body>
 </html>

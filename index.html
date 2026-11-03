@@ -155,6 +155,7 @@
           const u = getCurrentUser();
           const R = ROLES[u.role];
           document.write(`
+            ${notifWidgetHtml()}
             <div class="user-pill" id="user-pill" onclick="toggleUserMenu()">
               <div class="av" style="background:${R.color};color:${R.tc}">${u.initials}</div>
               <span style="font-size:13px;color:var(--text-primary)">${u.name}</span>
@@ -362,20 +363,33 @@ const DEFAULT_PROJECTS = [
     desc: 'Landing Craft Tank komersial untuk angkutan berat kepulauan Indonesia Timur.',
     phases: { concept: true, preliminary: true, contract: true, functional: true },
     deliverables: { total: 102, done: 102 }
+  },
+  {
+    id: 'p009', name: 'Ro-Pax 1000 — P445',
+    type: 'Kapal Ferry', client: 'PT PELNI (Persero)', year: 2027,
+    status: 'planning', progress: 0,
+    desc: 'Consultancy services for the design of the 1,000-passenger RoPax vessel project of PT PELNI (Persero). Jadwal NAOS P445_DDS_00 Rev.00 (Conceptual, Preliminary & Basic Design, 11 Jan–29 Oct 2027).',
+    phases: { concept: false, preliminary: false, contract: false, functional: false },
+    deliverables: { total: 136, done: 0 }
   }
 ];
 
 function loadProjects() {
   try {
     const s = localStorage.getItem('sd_projects');
-    return s ? JSON.parse(s) : DEFAULT_PROJECTS;
+    let projects = s ? JSON.parse(s) : [];
+    if (!Array.isArray(projects) || !projects.length) projects = DEFAULT_PROJECTS.slice();
+    // merge in any default projects not yet present (e.g. newly added ones),
+    // without touching projects the user already has/edited
+    const haveIds = new Set(projects.map(p => p.id));
+    DEFAULT_PROJECTS.forEach(dp => { if (!haveIds.has(dp.id)) projects.push(dp); });
+    saveProjects(projects);
+    return projects;
   } catch(e) { return DEFAULT_PROJECTS; }
 }
 function saveProjects(p) {
   try { localStorage.setItem('sd_projects', JSON.stringify(p)); } catch(e) {}
 }
-// seed once
-if (!localStorage.getItem('sd_projects')) saveProjects(DEFAULT_PROJECTS);
 
 let currentFilter = 'all';
 
