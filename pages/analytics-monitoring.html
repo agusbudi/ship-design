@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Analytics — Document Monitoring — ShipDesign</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .ana-wrap { padding: 18px 24px 40px; }
+
+    .ana-filters {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      background: var(--bg-primary); border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg); padding: 12px 14px; margin-bottom: 16px;
+    }
+    .ana-filters label { font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 3px; }
+    .ana-filters select, .ana-filters input[type="text"] {
+      font-size: 13px; padding: 6px 9px; border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-mid); background: var(--bg-primary);
+      color: var(--text-primary); cursor: pointer; font-family: var(--font);
+    }
+    .ana-filters select { min-width: 130px; }
+    .ana-filters input[type="text"] { min-width: 220px; cursor: text; }
+    .ana-filters .reset { margin-left: auto; align-self: flex-end; }
+    .ana-count { font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px; }
+
+    .mon-table-wrap {
+      background: var(--bg-primary); border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    table.mon-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .mon-table thead th {
+      text-align: left; font-size: 11px; font-weight: 500; color: var(--text-tertiary);
+      text-transform: uppercase; letter-spacing: .04em;
+      padding: 9px 12px; border-bottom: 0.5px solid var(--border-light);
+      background: var(--bg-secondary); white-space: nowrap; position: sticky; top: 0;
+    }
+    .mon-table tbody td { padding: 8px 12px; border-bottom: 0.5px solid var(--border-light); vertical-align: top; }
+    .mon-table tbody tr:last-child td { border-bottom: none; }
+    .mon-table tbody tr:hover { background: var(--bg-secondary); }
+    .mon-title { font-weight: 500; color: var(--text-primary); }
+    .mon-nowrap { white-space: nowrap; }
+    .mon-ph { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; white-space: nowrap; }
+    .mon-link { font-size: 11.5px; color: var(--blue-600); text-decoration: none; white-space: nowrap; }
+    .mon-link:hover { text-decoration: underline; }
+    .mon-empty { padding: 36px 20px; text-align: center; color: var(--text-tertiary); font-size: 13px; }
+  </style>
+</head>
+<body>
+<script src="../js/data.js"></script>
+<script>document.write(renderShell('ana-monitoring'));</script>
+
+<div class="content-header">
+  <span class="page-title">Analytics</span>
+  <span class="badge">DELTA &middot; Document Monitoring</span>
+</div>
+<script>document.write(analyticsTabsHtml('ana-monitoring'));</script>
+
+<div class="ana-wrap">
+
+  <div class="ana-filters">
+    <div style="flex:1;min-width:220px"><label>Cari dokumen</label><input type="text" id="f-search" placeholder="Nama dokumen&hellip;" oninput="renderTable()"></div>
+    <div><label>Fase</label><select id="f-phase" onchange="renderTable()"><option value="all">Semua fase</option></select></div>
+    <div><label>Kategori</label><select id="f-cat" onchange="renderTable()"><option value="all">Semua kategori</option></select></div>
+    <div><label>Reviewer</label><select id="f-reviewer" onchange="renderTable()"><option value="all">Semua reviewer</option></select></div>
+    <div><label>SLA</label><select id="f-sla" onchange="renderTable()">
+      <option value="all">Semua SLA</option>
+      <option value="ontime">On time</option>
+      <option value="duesoon">Due soon</option>
+      <option value="overdue">Overdue</option>
+      <option value="done">Selesai</option>
+    </select></div>
+    <button class="btn reset" onclick="resetFilters()">Reset filter</button>
+  </div>
+
+  <div class="ana-count" id="mon-count"></div>
+
+  <div class="mon-table-wrap">
+    <table class="mon-table">
+      <thead>
+        <tr>
+          <th style="width:36px">No.</th>
+          <th>Dokumen</th>
+          <th>Kategori</th>
+          <th>Fase</th>
+          <th>Status</th>
+          <th>Tahap approval</th>
+          <th>Reviewer</th>
+          <th>Hari diproses</th>
+          <th>SLA</th>
+          <th>Revisi</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="mon-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+document.write(closeShell());
+
+const ROWS = getAnalyticsRows();
+
+(function initFilters(){
+  const phaseSel = document.getElementById('f-phase');
+  Object.entries(PHASES).forEach(([k,p]) => phaseSel.insertAdjacentHTML('beforeend', `<option value="${k}">${p.label}</option>`));
+
+  const catSel = document.getElementById('f-cat');
+  Object.entries(CAT_LABELS).forEach(([k,l]) => catSel.insertAdjacentHTML('beforeend', `<option value="${k}">${l}</option>`));
+
+  const revSel = document.getElementById('f-reviewer');
+  [...new Set(ROWS.map(r=>r.reviewer))].sort().forEach(name => revSel.insertAdjacentHTML('beforeend', `<option value="${name}">${name}</option>`));
+})();
+
+function resetFilters() {
+  document.getElementById('f-search').value = '';
+  ['f-phase','f-cat','f-reviewer','f-sla'].forEach(id => document.getElementById(id).value = 'all');
+  renderTable();
+}
+
+function renderTable() {
+  const q      = document.getElementById('f-search').value.trim().toLowerCase();
+  const phase  = document.getElementById('f-phase').value;
+  const cat    = document.getElementById('f-cat').value;
+  const rev    = document.getElementById('f-reviewer').value;
+  const slaF   = document.getElementById('f-sla').value;
+
+  const rows = ROWS.filter(r => {
+    if (q && !r.task.label.toLowerCase().includes(q)) return false;
+    if (phase!=='all' && r.task.phase!==phase) return false;
+    if (cat!=='all'   && r.task.cat!==cat) return false;
+    if (rev!=='all'   && r.reviewer!==rev) return false;
+    if (slaF!=='all'  && r.sla!==slaF) return false;
+    return true;
+  }).sort((a,b) => b.daysPending - a.daysPending);
+
+  document.getElementById('mon-count').textContent = `${rows.length} / ${ROWS.length} dokumen`;
+
+  const tbody = document.getElementById('mon-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="11"><div class="mon-empty">Tidak ada dokumen yang cocok dengan filter.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r,i) => {
+    const t = r.task; const ph = PHASES[t.phase]; const sc = STATUS_CFG[t.status]; const sl = SLA_STATE_CFG[r.sla];
+    return `<tr>
+      <td class="mon-nowrap">${i+1}</td>
+      <td><div class="mon-title">${t.label}</div></td>
+      <td>${CAT_LABELS[t.cat]||t.cat}</td>
+      <td><span class="mon-ph" style="background:${ph.bg};color:${ph.tc}">${ph.label}</span></td>
+      <td><span class="chip ${sc.chip}">${sc.label}</span></td>
+      <td>${r.stepLabel}</td>
+      <td>${r.reviewer}</td>
+      <td class="mon-nowrap">${t.status==='done' ? '&mdash;' : r.daysPending+' hari'}</td>
+      <td><span class="chip ${sl.chip}">${sl.label}</span></td>
+      <td class="mon-nowrap">${r.rejectCount>0 ? r.rejectCount+'&times;' : '&mdash;'}</td>
+      <td><a class="mon-link" href="${treeHref(t.id)}">Buka &#8599;</a></td>
+    </tr>`;
+  }).join('');
+}
+
+renderTable();
+</script>
+</body>
+</html>

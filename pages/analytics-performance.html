@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Analytics — Performa & Reviewer — ShipDesign</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .ana-wrap { padding: 18px 24px 40px; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .widget  { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 16px; }
+    .w-title { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+    .w-sub   { font-size: 12px; color: var(--text-tertiary); margin-bottom: 14px; }
+
+    /* horizontal bar rows */
+    .hbar-row  { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+    .hbar-name { width: 150px; flex-shrink: 0; font-size: 12.5px; color: var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .hbar-track{ flex: 1; height: 16px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; display:flex; }
+    .hbar-fill { height: 16px; border-radius: 4px; display:flex; align-items:center; }
+    .hbar-val  { width: 54px; flex-shrink:0; font-size: 12px; color: var(--text-secondary); text-align:right; }
+    .hbar-empty{ font-size: 12px; color: var(--text-tertiary); padding: 6px 0; }
+
+    /* stacked bar rows (SLA performance) */
+    .stack-track { flex:1; height:16px; border-radius:4px; overflow:hidden; display:flex; gap:1px; }
+    .stack-seg   { height:16px; }
+    .perf-legend { display:flex; gap:16px; margin-top:4px; margin-bottom:14px; flex-wrap:wrap; }
+    .perf-legend span { font-size:11px; color:var(--text-secondary); display:flex; align-items:center; gap:5px; }
+    .perf-dot { width:9px; height:9px; border-radius:3px; }
+
+    /* category segmented bars */
+    .cat-row { margin-bottom: 14px; }
+    .cat-row-top { display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:5px; }
+    .cat-row-name { color: var(--text-primary); font-weight:500; }
+    .cat-row-count{ color: var(--text-tertiary); }
+    .seg-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 1px; }
+  </style>
+</head>
+<body>
+<script src="../js/data.js"></script>
+<script>document.write(renderShell('ana-performance'));</script>
+
+<div class="content-header">
+  <span class="page-title">Analytics</span>
+  <span class="badge">DELTA &middot; Performa &amp; Reviewer</span>
+</div>
+<script>document.write(analyticsTabsHtml('ana-performance'));</script>
+
+<div class="ana-wrap">
+
+  <div class="two-col">
+    <div class="widget" style="margin-bottom:0">
+      <div class="w-title">Bottleneck by Reviewer</div>
+      <div class="w-sub">Rata-rata hari menunggu pada dokumen yang masih berjalan, per reviewer</div>
+      <div id="bottleneck-chart"></div>
+    </div>
+    <div class="widget" style="margin-bottom:0">
+      <div class="w-title">SLA Performance by Reviewer</div>
+      <div class="w-sub">Komposisi status SLA dari dokumen yang sedang ditangani tiap reviewer</div>
+      <div class="perf-legend">
+        <span><span class="perf-dot" style="background:var(--green-600)"></span>On time</span>
+        <span><span class="perf-dot" style="background:var(--amber-400)"></span>Due soon</span>
+        <span><span class="perf-dot" style="background:var(--red-400)"></span>Overdue</span>
+      </div>
+      <div id="sla-perf-chart"></div>
+    </div>
+  </div>
+
+  <div class="widget">
+    <div class="w-title">Distribusi per Kategori</div>
+    <div class="w-sub">Status dokumen dikelompokkan per kategori disiplin</div>
+    <div id="cat-dist"></div>
+  </div>
+
+  <div class="widget" style="margin-bottom:0">
+    <div class="w-title">Top 5 Dokumen dengan Siklus Revisi Terbanyak</div>
+    <div class="w-sub">Dihitung dari jumlah approval yang pernah ditolak (reject) pada dokumen tersebut</div>
+    <div id="revision-chart"></div>
+  </div>
+
+</div>
+
+<script>
+document.write(closeShell());
+
+const ROWS = getAnalyticsRows();
+
+function fmt1(n) { return (Math.round(n*10)/10).toFixed(1); }
+
+/* ---- Bottleneck by reviewer (avg days pending, non-done docs) ---- */
+function renderBottleneck() {
+  const pending = ROWS.filter(r => r.task.status !== 'done');
+  const groups = {};
+  pending.forEach(r => { (groups[r.reviewer] = groups[r.reviewer] || []).push(r.daysPending); });
+  const data = Object.entries(groups)
+    .map(([name, arr]) => ({ name, avg: arr.reduce((a,b)=>a+b,0)/arr.length, n: arr.length }))
+    .sort((a,b) => b.avg - a.avg)
+    .slice(0, 8);
+
+  const el = document.getElementById('bottleneck-chart');
+  if (!data.length) { el.innerHTML = `<div class="hbar-empty">Tidak ada dokumen yang sedang berjalan.</div>`; return; }
+  const max = Math.max(...data.map(d=>d.avg), 1);
+  el.innerHTML = data.map(d => `
+    <div class="hbar-row">
+      <div class="hbar-name" title="${d.name}">${d.name}</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${(d.avg/max*100).toFixed(1)}%;background:var(--blue-600)"></div></div>
+      <div class="hbar-val">${fmt1(d.avg)} hr</div>
+    </div>`).join('');
+}
+
+/* ---- SLA performance by reviewer (stacked %) ---- */
+function renderSlaPerf() {
+  const pending = ROWS.filter(r => r.task.status !== 'done');
+  const groups = {};
+  pending.forEach(r => { (groups[r.reviewer] = groups[r.reviewer] || []).push(r.sla); });
+  const data = Object.entries(groups)
+    .map(([name, arr]) => ({
+      name, n: arr.length,
+      ontime:  arr.filter(s=>s==='ontime').length,
+      duesoon: arr.filter(s=>s==='duesoon').length,
+      overdue: arr.filter(s=>s==='overdue').length
+    }))
+    .sort((a,b) => b.n - a.n)
+    .slice(0, 8);
+
+  const el = document.getElementById('sla-perf-chart');
+  if (!data.length) { el.innerHTML = `<div class="hbar-empty">Tidak ada dokumen yang sedang berjalan.</div>`; return; }
+  el.innerHTML = data.map(d => {
+    const seg = (n,color) => n>0 ? `<div class="stack-seg" style="width:${(n/d.n*100).toFixed(1)}%;background:${color}" title="${n}"></div>` : '';
+    return `<div class="hbar-row">
+      <div class="hbar-name" title="${d.name}">${d.name}</div>
+      <div class="stack-track">
+        ${seg(d.ontime,'var(--green-600)')}${seg(d.duesoon,'var(--amber-400)')}${seg(d.overdue,'var(--red-400)')}
+      </div>
+      <div class="hbar-val">${d.n} dok</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---- Distribution per category (segmented bars) ---- */
+const STATUS_COLOR = { todo:'var(--gray-400)', 'in-progress':'var(--blue-600)', done:'var(--green-600)', overdue:'var(--red-400)' };
+function renderCatDist() {
+  const el = document.getElementById('cat-dist');
+  el.innerHTML = Object.entries(CAT_LABELS).map(([catKey, catLabel]) => {
+    const rows = ROWS.filter(r => r.task.cat === catKey);
+    const total = rows.length || 1;
+    const counts = { todo:0, 'in-progress':0, done:0, overdue:0 };
+    rows.forEach(r => counts[r.task.status]++);
+    const bar = ['done','in-progress','overdue','todo'].map(k => {
+      const w = counts[k]/total*100;
+      return w>0 ? `<div style="width:${w}%;background:${STATUS_COLOR[k]}" title="${STATUS_CFG[k].label}: ${counts[k]}"></div>` : '';
+    }).join('');
+    return `<div class="cat-row">
+      <div class="cat-row-top"><span class="cat-row-name">${catLabel}</span><span class="cat-row-count">${rows.length} dokumen</span></div>
+      <div class="seg-bar">${bar}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---- Top 5 revision cycle ---- */
+function renderRevisionChart() {
+  const data = ROWS.filter(r => r.rejectCount > 0).sort((a,b) => b.rejectCount - a.rejectCount).slice(0,5);
+  const el = document.getElementById('revision-chart');
+  if (!data.length) { el.innerHTML = `<div class="hbar-empty">Belum ada dokumen yang pernah direvisi (reject) sejauh ini.</div>`; return; }
+  const max = Math.max(...data.map(d=>d.rejectCount), 1);
+  el.innerHTML = data.map(d => `
+    <div class="hbar-row">
+      <div class="hbar-name" title="${d.task.label}">${d.task.label}</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${(d.rejectCount/max*100).toFixed(1)}%;background:var(--coral-400)"></div></div>
+      <div class="hbar-val">${d.rejectCount}&times;</div>
+    </div>`).join('');
+}
+
+renderBottleneck();
+renderSlaPerf();
+renderCatDist();
+renderRevisionChart();
+</script>
+</body>
+</html>

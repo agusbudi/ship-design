@@ -167,7 +167,7 @@ function buildTasks() {
   RAW_DATA.forEach(g => g.items.forEach(label => {
     const r = Math.random();
     const status = r<0.25?'done':r<0.5?'in-progress':r<0.65?'overdue':'todo';
-    tasks.push({ id:id++, phase:g.phase, cat:g.cat, label, status, approval:makeApproval(status,id), custom:false });
+    tasks.push({ id:id++, phase:g.phase, cat:g.cat, label, status, approval:makeApproval(status,id), custom:false, rejectCount: status==='overdue' ? (id%3) : 0 });
   }));
   return tasks;
 }
@@ -203,6 +203,7 @@ function doReject(tasks, taskId, note) {
   const t = tasks.find(t => t.id == taskId); if (!t) return false;
   t.approval.steps.forEach(s => { s.approved=false; s.by=null; s.time=null; s.note=''; });
   t.approval.pendingSince = new Date().toISOString();
+  t.rejectCount = (t.rejectCount||0) + 1;
   t.status = 'in-progress';
   const u = getCurrentUser();
   const c = getComments(); if (!c[taskId]) c[taskId]=[];
@@ -217,7 +218,7 @@ function addDeliverable(tasks, label, phase, cat) {
   const u = getCurrentUser();
   const t = { id:Date.now(), phase, cat, label, status:'todo',
     approval:makeApproval('todo',0), custom:true, addedBy:u.name,
-    addedAt:new Date().toLocaleDateString('id-ID') };
+    addedAt:new Date().toLocaleDateString('id-ID'), rejectCount:0 };
   t.approval.pendingSince = new Date().toISOString();
   tasks.push(t); saveTasks(tasks); return t;
 }
@@ -323,6 +324,8 @@ function renderShell(activePage) {
     <div class="sidebar">
       <div class="nav-label">Navigation</div>
       ${pages.map(p=>`<a class="nav-item${activePage===p.id?' active':''}" href="${p.href}">${p.icon}${p.label}</a>`).join('')}
+      <div class="nav-label" style="margin-top:8px">Analytics (DELTA)</div>
+      ${ANALYTICS_PAGES.map(p=>`<a class="nav-item${activePage===p.id?' active':''}" href="${p.href}">${analyticsIcon()}${p.label}</a>`).join('')}
       <div class="nav-label" style="margin-top:8px">Phases</div>
       ${Object.entries(PHASES).map(([k,p])=>`<a class="nav-item" href="tree.html?phase=${k}"><span class="nav-dot" style="background:${p.color}"></span>${p.label}</a>`).join('')}
     </div>
@@ -371,6 +374,74 @@ function getActiveReminderCount() { return getReviewNotifications().length; }
 function treeHref(taskId) {
   const inPages = location.pathname.replace(/\\/g,'/').includes('/pages/');
   return (inPages ? 'tree.html' : 'pages/tree.html') + '?taskId=' + taskId;
+}
+
+/* ================================================================
+   Analytics (DELTA) — shared helpers for the 3 analytics pages
+   ================================================================
+   Reviewer, days-in-process and SLA state are all derived live from
+   the same task/approval data the rest of the app uses — nothing is
+   fabricated, and the SLA target reuses the global H- reminder setting
+   so there is exactly one "how many days is acceptable" knob in the app. */
+function getTaskReviewer(t) {
+  if (!t.approval) return '—';
+  const steps = t.approval.steps;
+  const ni = steps.findIndex(s => !s.approved);
+  if (ni === -1) {
+    const last = steps[steps.length-1];
+    return last.by || '—';
+  }
+  const candidates = TEAM_MEMBERS.filter(m => m.role === steps[ni].role);
+  if (!candidates.length) return ROLES[steps[ni].role].label;
+  const pick = candidates[Number(t.id) % candidates.length];
+  return pick.name;
+}
+function getTaskStepLabel(t) {
+  if (!t.approval) return '—';
+  const ni = t.approval.steps.findIndex(s => !s.approved);
+  return ni === -1 ? 'Selesai' : APPROVAL_STEPS[ni].label;
+}
+function getTaskDaysPending(t) {
+  if (!t.approval || !t.approval.pendingSince) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(t.approval.pendingSince).getTime()) / 86400000));
+}
+/* 'done' | 'ontime' | 'duesoon' | 'overdue', against the global H- SLA target */
+function getTaskSlaState(t, hDays) {
+  if (t.status === 'done') return 'done';
+  const d = getTaskDaysPending(t);
+  if (d > hDays) return 'overdue';
+  if (d >= Math.ceil(hDays*0.7)) return 'duesoon';
+  return 'ontime';
+}
+const SLA_STATE_CFG = {
+  done:    { label:'Selesai',   chip:'chip-done' },
+  ontime:  { label:'On time',   chip:'chip-prog' },
+  duesoon: { label:'Due soon',  chip:'chip-prog' },
+  overdue: { label:'Overdue',   chip:'chip-late' }
+};
+const CAT_LABELS = { hull:'Hull', machinery:'Machinery', electrical:'Electrical', hvac:'HVAC', production:'Production' };
+
+const ANALYTICS_PAGES = [
+  { id:'ana-overview',    href:'analytics-overview.html',    label:'Ringkasan & SLA' },
+  { id:'ana-performance', href:'analytics-performance.html', label:'Performa & Reviewer' },
+  { id:'ana-monitoring',  href:'analytics-monitoring.html',  label:'Document Monitoring' }
+];
+function analyticsTabsHtml(active) {
+  return `<div class="ana-tabs">${ANALYTICS_PAGES.map(t=>
+    `<a class="ana-tab${active===t.id?' active':''}" href="${t.href}">${t.label}</a>`).join('')}</div>`;
+}
+
+/* enrich every task once — used by all 3 analytics pages */
+function getAnalyticsRows() {
+  const cfg = getReminderSettings();
+  return getTasks().map(t => ({
+    task: t,
+    reviewer: getTaskReviewer(t),
+    stepLabel: getTaskStepLabel(t),
+    daysPending: getTaskDaysPending(t),
+    sla: getTaskSlaState(t, cfg.hDays),
+    rejectCount: t.rejectCount || 0
+  }));
 }
 
 let notifShowSettings = false;
@@ -487,6 +558,7 @@ if (typeof document !== 'undefined') {
 
 function treeIcon()   { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="5" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="11" width="5" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="10" y="6.5" width="5" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M6 3.5h2.5V8H6M8.5 8H10M6 12.5h2.5V8" stroke="currentColor" stroke-width="1.2"/></svg>`; }
 function scheduleIcon() { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="1.3" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M4 9h2.3M4 11.3h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`; }
+function analyticsIcon() { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><path d="M2 13.5V2M2 13.5h12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="4" y="8.5" width="2" height="3.5" rx=".5" fill="currentColor" opacity=".55"/><rect x="7.2" y="5.5" width="2" height="6.5" rx=".5" fill="currentColor" opacity=".75"/><rect x="10.4" y="7" width="2" height="5" rx=".5" fill="currentColor"/></svg>`; }
 function ganttIcon()  { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="8" height="2.5" rx="1" fill="currentColor" opacity=".4"/><rect x="4" y="6.8" width="10" height="2.5" rx="1" fill="currentColor" opacity=".6"/><rect x="2" y="10.5" width="6" height="2.5" rx="1" fill="currentColor" opacity=".4"/></svg>`; }
 function kanbanIcon() { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6" y="2" width="4" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="2" width="4" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>`; }
 function dashIcon()   { return `<svg class="nav-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>`; }

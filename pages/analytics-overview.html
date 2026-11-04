@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Analytics — Ringkasan & SLA — ShipDesign</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .ana-wrap { padding: 18px 24px 40px; }
+
+    .ana-filters {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      background: var(--bg-primary); border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg); padding: 12px 14px; margin-bottom: 18px;
+    }
+    .ana-filters label { font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 3px; }
+    .ana-filters select {
+      font-size: 13px; padding: 6px 9px; border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-mid); background: var(--bg-primary);
+      color: var(--text-primary); cursor: pointer; font-family: var(--font); min-width: 140px;
+    }
+    .ana-filters .reset { margin-left: auto; align-self: flex-end; }
+
+    .stat-row { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat-card { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 14px 16px; }
+    .stat-card.accent { border-color: var(--border-light); }
+    .stat-icn   { width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;margin-bottom:8px; }
+    .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom:2px; }
+    .stat-val   { font-size: 24px; font-weight: 500; line-height:1.2; }
+    .stat-sub   { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+    .two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .widget  { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 18px 20px; }
+    .w-title { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+    .w-sub   { font-size: 12px; color: var(--text-tertiary); margin-bottom: 14px; }
+
+    .sla-big { display: flex; align-items: baseline; gap: 10px; }
+    .sla-num { font-size: 36px; font-weight: 500; line-height: 1; }
+    .sla-target { font-size: 12px; color: var(--text-tertiary); }
+    .sla-bar-bg { height: 8px; background: var(--border-light); border-radius: 4px; margin-top: 14px; overflow: hidden; position:relative; }
+    .sla-bar-fill { height: 8px; border-radius: 4px; }
+    .sla-target-mark { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--text-primary); opacity:.4; }
+    .sla-note { font-size: 11px; color: var(--text-tertiary); margin-top: 10px; line-height:1.5; }
+
+    .seg-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; margin-bottom: 12px; }
+    .seg-legend { display: flex; gap: 16px; flex-wrap: wrap; }
+    .seg-legend-item { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+    .seg-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+    .seg-legend-val { font-weight: 500; color: var(--text-primary); }
+  </style>
+</head>
+<body>
+<script src="../js/data.js"></script>
+<script>document.write(renderShell('ana-overview'));</script>
+
+<div class="content-header">
+  <span class="page-title">Analytics</span>
+  <span class="badge">DELTA &middot; Design Engineering Lead Time &amp; Tracking</span>
+  <div class="header-right">
+    <span style="font-size:12px;color:var(--text-tertiary)" id="ana-updated"></span>
+  </div>
+</div>
+<script>document.write(analyticsTabsHtml('ana-overview'));</script>
+
+<div class="ana-wrap">
+
+  <div class="ana-filters">
+    <div><label>Fase</label><select id="f-phase" onchange="renderAll()"><option value="all">Semua fase</option></select></div>
+    <div><label>Kategori</label><select id="f-cat" onchange="renderAll()"><option value="all">Semua kategori</option></select></div>
+    <div><label>Reviewer</label><select id="f-reviewer" onchange="renderAll()"><option value="all">Semua reviewer</option></select></div>
+    <div><label>Status dokumen</label><select id="f-status" onchange="renderAll()"><option value="all">Semua status</option></select></div>
+    <button class="btn reset" onclick="resetFilters()">Reset filter</button>
+  </div>
+
+  <div class="stat-row" id="stat-row"></div>
+
+  <div class="two-col">
+    <div class="widget">
+      <div class="w-title">SLA Compliance</div>
+      <div class="w-sub">Dokumen dalam proses yang masih memenuhi target H- hari</div>
+      <div class="sla-big">
+        <span class="sla-num" id="sla-num">—</span>
+        <span class="sla-target" id="sla-target"></span>
+      </div>
+      <div class="sla-bar-bg"><div class="sla-bar-fill" id="sla-bar-fill"></div><div class="sla-target-mark" style="left:90%"></div></div>
+      <p class="sla-note" id="sla-h-note"></p>
+    </div>
+    <div class="widget">
+      <div class="w-title">Project Progress</div>
+      <div class="w-sub">Dokumen yang sudah fully approved dari total terfilter</div>
+      <div class="sla-big">
+        <span class="sla-num" id="prog-num">—</span>
+      </div>
+      <div class="sla-bar-bg"><div class="sla-bar-fill" id="prog-bar-fill" style="background:var(--blue-600)"></div></div>
+      <p class="sla-note" id="prog-note"></p>
+    </div>
+  </div>
+
+  <div class="widget">
+    <div class="w-title">Document Status</div>
+    <div class="w-sub">Distribusi status seluruh dokumen terfilter</div>
+    <div class="seg-bar" id="status-seg"></div>
+    <div class="seg-legend" id="status-legend"></div>
+  </div>
+
+</div>
+
+<script>
+document.write(closeShell());
+
+const ALL_ROWS = getAnalyticsRows();
+document.getElementById('sla-h-note').textContent =
+  `Target SLA mengikuti pengaturan global H-${getReminderSettings().hDays} di ikon notifikasi (lonceng, kanan atas) — satu pengaturan berlaku untuk seluruh reminder & SLA di aplikasi ini.`;
+
+document.getElementById('ana-updated').textContent = 'Update: ' + new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+
+/* ---- populate filter dropdowns ---- */
+(function initFilters(){
+  const phaseSel = document.getElementById('f-phase');
+  Object.entries(PHASES).forEach(([k,p]) => phaseSel.insertAdjacentHTML('beforeend', `<option value="${k}">${p.label}</option>`));
+
+  const catSel = document.getElementById('f-cat');
+  Object.entries(CAT_LABELS).forEach(([k,l]) => catSel.insertAdjacentHTML('beforeend', `<option value="${k}">${l}</option>`));
+
+  const revSel = document.getElementById('f-reviewer');
+  [...new Set(ALL_ROWS.map(r=>r.reviewer))].sort().forEach(name => revSel.insertAdjacentHTML('beforeend', `<option value="${name}">${name}</option>`));
+
+  const statSel = document.getElementById('f-status');
+  Object.entries(STATUS_CFG).forEach(([k,s]) => statSel.insertAdjacentHTML('beforeend', `<option value="${k}">${s.label}</option>`));
+})();
+
+function resetFilters() {
+  ['f-phase','f-cat','f-reviewer','f-status'].forEach(id => document.getElementById(id).value = 'all');
+  renderAll();
+}
+
+function getFilteredRows() {
+  const phase = document.getElementById('f-phase').value;
+  const cat   = document.getElementById('f-cat').value;
+  const rev   = document.getElementById('f-reviewer').value;
+  const stat  = document.getElementById('f-status').value;
+  return ALL_ROWS.filter(r => {
+    if (phase!=='all' && r.task.phase!==phase) return false;
+    if (cat!=='all'   && r.task.cat!==cat) return false;
+    if (rev!=='all'   && r.reviewer!==rev) return false;
+    if (stat!=='all'  && r.task.status!==stat) return false;
+    return true;
+  });
+}
+
+const STAT_ICON_BG = { total:'var(--blue-50)', done:'var(--green-50)', prog:'var(--blue-50)', late:'var(--red-50)', todo:'var(--gray-50)' };
+const STAT_ICON_FG = { total:'var(--blue-600)', done:'var(--green-600)', prog:'var(--blue-600)', late:'var(--red-800)', todo:'var(--gray-600)' };
+
+function renderStats(rows) {
+  const total = rows.length;
+  const byStatus = { done:0, 'in-progress':0, overdue:0, todo:0 };
+  rows.forEach(r => byStatus[r.task.status]++);
+  const pct = n => total ? Math.round(n/total*100) : 0;
+
+  const cards = [
+    { key:'total', label:'Total Dokumen', val:total, sub:'Semua dokumen terfilter' },
+    { key:'done',  label:'Approved',      val:byStatus.done,        sub:pct(byStatus.done)+'% dari total' },
+    { key:'prog',  label:'Under Review',  val:byStatus['in-progress'], sub:pct(byStatus['in-progress'])+'% dari total' },
+    { key:'late',  label:'Overdue',       val:byStatus.overdue,     sub:pct(byStatus.overdue)+'% dari total' },
+    { key:'todo',  label:'Belum Mulai',   val:byStatus.todo,        sub:pct(byStatus.todo)+'% dari total' }
+  ];
+  document.getElementById('stat-row').innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-icn" style="background:${STAT_ICON_BG[c.key]};color:${STAT_ICON_FG[c.key]}">${statIcon(c.key)}</div>
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-val" style="color:${STAT_ICON_FG[c.key]}">${c.val}</div>
+      <div class="stat-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+function statIcon(key) {
+  const icons = {
+    total: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="1.5" width="12" height="13" rx="1.3" stroke="currentColor" stroke-width="1.3"/><path d="M5 5h6M5 8h6M5 11h3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
+    done:  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/><path d="M5.2 8.2l2 2 3.6-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    prog:  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5V8l2.6 1.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    late:  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l7 12.5H1L8 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 6.5v3.2M8 11.7v.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    todo:  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/></svg>'
+  };
+  return icons[key] || '';
+}
+
+function renderSla(rows) {
+  const pending = rows.filter(r => r.task.status !== 'done');
+  const compliant = pending.filter(r => r.sla !== 'overdue').length;
+  const pct = pending.length ? Math.round(compliant/pending.length*100) : 100;
+  const target = 90;
+  const ok = pct >= target;
+  document.getElementById('sla-num').textContent = pct + '%';
+  document.getElementById('sla-num').style.color = ok ? 'var(--green-600)' : 'var(--red-800)';
+  document.getElementById('sla-target').textContent = `Target ≥ ${target}%`;
+  document.getElementById('sla-bar-fill').style.cssText = `width:${pct}%;background:${ok?'var(--green-600)':'var(--red-400)'}`;
+}
+
+function renderProgress(rows) {
+  const total = rows.length;
+  const done = rows.filter(r => r.task.status==='done').length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('prog-num').textContent = pct + '%';
+  document.getElementById('prog-bar-fill').style.width = pct + '%';
+  document.getElementById('prog-note').textContent = `${done} dari ${total} dokumen sudah fully approved (4/4 tahap).`;
+}
+
+const STATUS_COLOR = { todo:'var(--gray-400)', 'in-progress':'var(--blue-600)', done:'var(--green-600)', overdue:'var(--red-400)' };
+
+function renderStatusSeg(rows) {
+  const total = rows.length || 1;
+  const order = ['done','in-progress','overdue','todo'];
+  const counts = { todo:0, 'in-progress':0, done:0, overdue:0 };
+  rows.forEach(r => counts[r.task.status]++);
+  document.getElementById('status-seg').innerHTML = order.map(k => {
+    const w = counts[k]/total*100;
+    return w>0 ? `<div style="width:${w}%;background:${STATUS_COLOR[k]}" title="${STATUS_CFG[k].label}: ${counts[k]}"></div>` : '';
+  }).join('');
+  document.getElementById('status-legend').innerHTML = order.map(k => `
+    <span class="seg-legend-item"><span class="seg-dot" style="background:${STATUS_COLOR[k]}"></span>${STATUS_CFG[k].label} &middot; <span class="seg-legend-val">${counts[k]}</span> (${rows.length?Math.round(counts[k]/rows.length*100):0}%)</span>`).join('');
+}
+
+function renderAll() {
+  const rows = getFilteredRows();
+  renderStats(rows);
+  renderSla(rows);
+  renderProgress(rows);
+  renderStatusSeg(rows);
+}
+
+renderAll();
+</script>
+</body>
+</html>
