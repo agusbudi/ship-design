@@ -295,8 +295,11 @@ function renderShell(activePage) {
   const u = getCurrentUser(); const r = ROLES[u.role];
   return `<div class="app">
   <div class="topbar">
-    <div class="logo-box"><svg viewBox="0 0 18 18" fill="none"><path d="M9 2L2 6v6l7 4 7-4V6L9 2z" stroke="#fff" stroke-width="1.4"/><path d="M9 7v4M6.5 8.5l2.5 2.5 2.5-2.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg></div>
-    <span class="logo-name">ShipDesign</span><span class="logo-sub">/ KRI Nusantara — Basic Design</span>
+    <a href="../index.html" class="logo-link" title="Kembali ke daftar proyek">
+      <div class="logo-box"><svg viewBox="0 0 18 18" fill="none"><path d="M9 2L2 6v6l7 4 7-4V6L9 2z" stroke="#fff" stroke-width="1.4"/><path d="M9 7v4M6.5 8.5l2.5 2.5 2.5-2.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg></div>
+      <span class="logo-name">ShipDesign</span>
+    </a>
+    <span class="logo-sub">/ KRI Nusantara — Basic Design</span>
     <div class="topbar-right">
       ${notifWidgetHtml()}
       <div class="user-pill" id="user-pill" onclick="toggleUserMenu()">
